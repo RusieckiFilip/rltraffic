@@ -1,0 +1,12 @@
+control (unmutated, 5 test targets): exit 0; 40 passed in 14.56s
+mutant                                                    result    evidence
+B2-1 the module's window back to 600 s                    KILLED    FAILED tests/test_stall_guard.py::test_the_constants_are_b3s_with_amendment_b2s_window
+B2-2 the driver's window default back to 600              KILLED    FAILED tests/test_corrective_round_driver.py::test_the_window_is_120_s_and_the_cap_60_restarts_each_with_an_environment_override
+B2-3 the driver's cap default back to 20                  KILLED    FAILED tests/test_corrective_round_driver.py::test_the_window_is_120_s_and_the_cap_60_restarts_each_with_an_environment_override
+B2-4 the window override ignored                          KILLED    FAILED tests/test_corrective_round_driver.py::test_the_environment_overrides_reach_every_attempt_and_the_cap
+B2-5 the cap override ignored                             KILLED    FAILED tests/test_corrective_round_driver.py::test_the_environment_overrides_reach_every_attempt_and_the_cap
+B2-6 the driver hands the worker no window                KILLED    FAILED tests/test_corrective_round_driver.py::test_a_worker_blocked_in_a_c_level_wait_is_restarted_and_completes
+B2-7 the CLI arms the default whatever it is given        KILLED    FAILED tests/test_stall_guard.py::test_the_rolling_subcommands_hand_their_window_to_the_guard[extra1-45.0]
+B2-8 the overrides not validated                          KILLED    FAILED tests/test_corrective_round_driver.py::test_a_bad_override_is_refused_before_anything_runs[P91_STALL_SECONDS-abc]
+B2-9 audit: a machine path used before the argument refusalsKILLED    FAILED tests/test_corrective_round_driver.py::test_every_driver_run_a_test_makes_names_a_machine_path_only_in_an_assignment
+every file restored, sha256 equal to the original

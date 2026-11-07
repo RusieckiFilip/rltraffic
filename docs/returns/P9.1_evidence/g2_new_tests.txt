@@ -1,0 +1,6 @@
+HEAD ce25ca3; tracked changes: 0
+................................sssss.....s                              [100%]
+=========================== short test summary info ============================
+SKIPPED [5] tests/test_corrective_report_load.py:203: T-regress needs the committed P9.1 artifacts and the campaign's run directories (RLTRAFFIC_OUTPUT_ROOT, RLTRAFFIC_CORPUS_V11, RLTRAFFIC_D4RL_OUT)
+SKIPPED [1] tests/test_random_fresh_prompt.py:27: the hz1x1 random_fresh tier is collected at G3's first stage (RLTRAFFIC_CORPUS_V11)
+181 passed, 6 skipped in 31.27s

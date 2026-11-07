@@ -1,0 +1,78 @@
+(1) Q6's two-valued vocabulary (P5.2c): COLLAPSED iff the arm's mean is worse than the reference's with the paired CI excluding 0, else NOT COLLAPSED; against each random reference (A27(d))
+  hz1x1 original_random_tier: collapsed count {'att_engine': {'random_fresh': 2, 'registered_five_schedule': 1}, 'att_ours': {'random_fresh': 2, 'registered_five_schedule': 1}}
+    dt               - registered_five_schedule att_engine   -33.94 [  -34.43,   -33.45] | att_ours    -8.51 -> NOT COLLAPSED
+    dt               - random_fresh             att_engine   -19.25 [  -23.06,   -15.43] | att_ours    +0.52 -> NOT COLLAPSED
+    bc               - registered_five_schedule att_engine    -6.10 [   -8.65,    -3.56] | att_ours    -0.93 -> NOT COLLAPSED
+    bc               - random_fresh             att_engine    +8.59 [   +3.99,   +13.19] | att_ours    +8.10 -> COLLAPSED
+    bc_top10         - registered_five_schedule att_engine    +4.59 [   +1.23,    +7.95] | att_ours    +3.30 -> COLLAPSED
+    bc_top10         - random_fresh             att_engine   +19.28 [  +13.87,   +24.69] | att_ours   +12.33 -> COLLAPSED
+    iql              - registered_five_schedule att_engine   -73.97 [  -76.06,   -71.87] | att_ours   -35.49 -> NOT COLLAPSED
+    iql              - random_fresh             att_engine   -59.27 [  -63.59,   -54.95] | att_ours   -26.46 -> NOT COLLAPSED
+  hz1x1 random_fresh_tier: collapsed count {'att_engine': {'random_fresh': 0, 'registered_five_schedule': 0}, 'att_ours': {'random_fresh': 1, 'registered_five_schedule': 0}}
+    dt               - registered_five_schedule att_engine   -22.22 [  -25.61,   -18.83] | att_ours   -13.35 -> NOT COLLAPSED
+    dt               - random_fresh             att_engine    -7.52 [  -12.72,    -2.33] | att_ours    -4.32 -> NOT COLLAPSED
+    bc               - registered_five_schedule att_engine   -16.90 [  -24.05,    -9.74] | att_ours    -2.49 -> NOT COLLAPSED
+    bc               - random_fresh             att_engine    -2.20 [  -10.62,    +6.21] | att_ours    +6.54 -> NOT COLLAPSED
+    bc_top10         - registered_five_schedule att_engine   -51.96 [  -55.39,   -48.53] | att_ours   -30.16 -> NOT COLLAPSED
+    bc_top10         - random_fresh             att_engine   -37.26 [  -42.40,   -32.12] | att_ours   -21.13 -> NOT COLLAPSED
+    iql              - registered_five_schedule att_engine  -267.23 [ -272.19,  -262.28] | att_ours  -126.32 -> NOT COLLAPSED
+    iql              - random_fresh             att_engine  -252.54 [ -258.71,  -246.37] | att_ours  -117.29 -> NOT COLLAPSED
+    iql_t            - registered_five_schedule att_engine  -290.87 [ -294.96,  -286.78] | att_ours  -109.24 -> NOT COLLAPSED
+    iql_t            - random_fresh             att_engine  -276.18 [ -281.56,  -270.79] | att_ours  -100.21 -> NOT COLLAPSED
+  beside hz1x1 seed 101: distinct 100 of 100, most common share 0.01, identical to a reference {'random_fresh': 0, 'registered_five_schedule': 0}, replays a training schedule 0
+  beside hz1x1 seed 202: distinct 100 of 100, most common share 0.01, identical to a reference {'random_fresh': 0, 'registered_five_schedule': 0}, replays a training schedule 0
+  beside hz1x1 seed 303: distinct 100 of 100, most common share 0.01, identical to a reference {'random_fresh': 0, 'registered_five_schedule': 0}, replays a training schedule 0
+  beside hz1x1 seed 404: distinct 100 of 100, most common share 0.01, identical to a reference {'random_fresh': 0, 'registered_five_schedule': 0}, replays a training schedule 0
+  beside hz1x1 seed 505: distinct 100 of 100, most common share 0.01, identical to a reference {'random_fresh': 0, 'registered_five_schedule': 0}, replays a training schedule 0
+  grid4x4 original_random_tier: collapsed count {'att_engine': {'random_fresh': 3, 'registered_five_schedule': 3}, 'att_ours': {'random_fresh': 3, 'registered_five_schedule': 3}}
+    dt_spatial       - registered_five_schedule att_engine    -5.76 [   -6.25,    -5.26] | att_ours    -5.74 -> NOT COLLAPSED
+    dt_spatial       - random_fresh             att_engine    -5.24 [   -5.88,    -4.59] | att_ours    -5.24 -> NOT COLLAPSED
+    dt_nomix         - registered_five_schedule att_engine    -5.05 [   -5.51,    -4.58] | att_ours    -5.04 -> NOT COLLAPSED
+    dt_nomix         - random_fresh             att_engine    -4.53 [   -5.19,    -3.87] | att_ours    -4.53 -> NOT COLLAPSED
+    bc               - registered_five_schedule att_engine   +29.25 [  +26.21,   +32.29] | att_ours   +28.99 -> COLLAPSED
+    bc               - random_fresh             att_engine   +29.77 [  +26.58,   +32.96] | att_ours   +29.49 -> COLLAPSED
+    bc_top10         - registered_five_schedule att_engine   +90.75 [  +85.79,   +95.71] | att_ours   +89.98 -> COLLAPSED
+    bc_top10         - random_fresh             att_engine   +91.27 [  +86.24,   +96.30] | att_ours   +90.48 -> COLLAPSED
+    bc_top10_perix   - registered_five_schedule att_engine   +41.24 [  +37.20,   +45.28] | att_ours   +40.82 -> COLLAPSED
+    bc_top10_perix   - random_fresh             att_engine   +41.76 [  +37.62,   +45.89] | att_ours   +41.33 -> COLLAPSED
+    iql              - registered_five_schedule att_engine   -61.83 [  -64.61,   -59.05] | att_ours   -61.88 -> NOT COLLAPSED
+    iql              - random_fresh             att_engine   -61.31 [  -64.17,   -58.45] | att_ours   -61.38 -> NOT COLLAPSED
+  grid4x4 random_fresh_tier: collapsed count {'att_engine': {'random_fresh': 4, 'registered_five_schedule': 4}, 'att_ours': {'random_fresh': 4, 'registered_five_schedule': 4}}
+    dt_nomix         - registered_five_schedule att_engine   -18.70 [  -19.60,   -17.79] | att_ours   -18.67 -> NOT COLLAPSED
+    dt_nomix         - random_fresh             att_engine   -18.18 [  -19.24,   -17.12] | att_ours   -18.17 -> NOT COLLAPSED
+    bc_m             - registered_five_schedule att_engine  +105.71 [ +100.01,  +111.40] | att_ours  +104.89 -> COLLAPSED
+    bc_m             - random_fresh             att_engine  +106.22 [ +100.50,  +111.95] | att_ours  +105.39 -> COLLAPSED
+    bc_top10_m       - registered_five_schedule att_engine   +21.61 [  +18.34,   +24.88] | att_ours   +21.30 -> COLLAPSED
+    bc_top10_m       - random_fresh             att_engine   +22.13 [  +18.84,   +25.41] | att_ours   +21.80 -> COLLAPSED
+    bc_top10_perix_m - registered_five_schedule att_engine   +21.56 [  +17.50,   +25.63] | att_ours   +21.26 -> COLLAPSED
+    bc_top10_perix_m - random_fresh             att_engine   +22.08 [  +18.00,   +26.15] | att_ours   +21.76 -> COLLAPSED
+    iql_m            - registered_five_schedule att_engine   +47.61 [  +42.66,   +52.56] | att_ours   +46.93 -> COLLAPSED
+    iql_m            - random_fresh             att_engine   +48.13 [  +43.28,   +52.98] | att_ours   +47.44 -> COLLAPSED
+  beside grid4x4 seed 101: distinct 100 of 100, most common share 0.01, identical to a reference {'random_fresh': 0, 'registered_five_schedule': 0}, replays a training schedule 0
+  beside grid4x4 seed 202: distinct 100 of 100, most common share 0.01, identical to a reference {'random_fresh': 0, 'registered_five_schedule': 0}, replays a training schedule 0
+  beside grid4x4 seed 303: distinct 100 of 100, most common share 0.01, identical to a reference {'random_fresh': 0, 'registered_five_schedule': 0}, replays a training schedule 0
+  beside grid4x4 seed 404: distinct 100 of 100, most common share 0.01, identical to a reference {'random_fresh': 0, 'registered_five_schedule': 0}, replays a training schedule 0
+  beside grid4x4 seed 505: distinct 100 of 100, most common share 0.01, identical to a reference {'random_fresh': 0, 'registered_five_schedule': 0}, replays a training schedule 0
+(2) 255 P9.1 runs; a non-empty paused_during_run: 0; trace_covered false: 8
+  traces 9; gaps over 60.0 s: 0
+  #65 p9_1:hz1x1:iql_t@random_fresh seed 505 (train 20261029T154931Z): ends +12.3 s after its session trace's last sample
+  #125 p9_1:hz1x1:bc_top10_100k@mix50 seed 505 (train 20261029T220237Z): ends +10.8 s after its session trace's last sample
+  #154 p9_1:grid4x4:bc_m@maxpressure seed 404 (train 20261030T114038Z): ends +3.4 s after its session trace's last sample
+  #187 p9_1:grid4x4:iql_m@fixedtime seed 202 (train 20261031T095739Z): ends +6.0 s after its session trace's last sample
+  #211 p9_1:grid4x4:iql_t@mappo1000 seed 101 (train 20261102T131153Z): ends +10.7 s after its session trace's last sample
+  #225 p9_1:grid4x4:iql_t@fixedtime seed 505 (train 20261103T102301Z): ends +15.2 s after its session trace's last sample
+  #235 p9_1:grid4x4:dt_nomix@random_fresh seed 505 (train 20261103T152830Z): ends +15.1 s after its session trace's last sample
+  #255 p9_1:grid4x4:iql_m@random_fresh seed 505 (train 20261104T150356Z): ends +1.1 s after its session trace's last sample
+(3) diagnostics, not registered statistics (BRIEF_46 E.7, F.2-3): descriptive only; no prediction, verdict, gate or decision reads them
+  D4RL    iql       targets active (P8.3, registered)  n   5 | final Q loss 0.421 [0.356, 0.722]     | final V loss 0.164 [0.13, 0.341]      | AWR near zero 0.0508 [0.0498, 0.0523]
+  D4RL    iql_t     targets off                        n   5 | final Q loss 84.4 [81.9, 153]         | final V loss 10.5 [8.64, 13.7]        | AWR near zero 0.5 [0.459, 0.623]
+  grid4x4 iql_m     targets off                        n  25 | final Q loss 228 [22.6, 1.29e+03]     | final V loss 27.2 [2.23, 535]         | AWR near zero 0.352 [0.0628, 0.979]
+  grid4x4 iql_t     targets off                        n  20 | final Q loss 215 [11.4, 8.86e+03]     | final V loss 45.3 [0.368, 3.29e+03]   | AWR near zero 0.123 [0.0508, 0.629]
+  hz1x1   iql       targets active                     n  10 | final Q loss 29.3 [12, 59.8]          | final V loss 12.1 [4, 22.8]           | AWR near zero 0.467 [0.328, 0.613]
+  hz1x1   iql_100k  targets active                     n  10 | final Q loss 16.6 [1.2, 22.7]         | final V loss 6.6 [2.07, 18.6]         | AWR near zero 0.223 [0.0257, 0.497]
+  hz1x1   iql_t     targets off                        n  50 | final Q loss 88.1 [17, 8.32e+03]      | final V loss 24.9 [5.55, 4.89e+03]    | AWR near zero 0.252 [0.0202, 0.798]
+(4) window {'start_unix': 1793198337.0, 'end_unix': 1793204543.0, 'seconds': 6206.0}; records read 255; overlap total 1053.2 s
+  hz1x1 iql_t@random seed 101: 345.6 s
+  hz1x1 iql_t@random seed 202: 350.7 s
+  hz1x1 iql_t@random seed 303: 356.9 s
+  trace inside the window {'samples': 57, 'readings': 57, 'memory_used_mib': [562.0, 3674.0], 'utilization_pct': [47.0, 58.0]}; outside it {'samples': 6475, 'readings': 6475, 'memory_used_mib': [438.0, 7827.0], 'utilization_pct': [0.0, 98.0]}

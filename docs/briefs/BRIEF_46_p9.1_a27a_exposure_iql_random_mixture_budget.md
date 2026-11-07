@@ -2877,3 +2877,51 @@ whole suite did not. T.5-2 runs it at a head that holds the artifacts. It change
 - **The coordinator:** after "P9.1 fix round done", the verification and the merge M2 (T.5-3); then the CI ceiling and `BRIEF_48`'s
   amendment (T.5-5).
 - **P9.3** waits for P9.1's merge.
+
+---
+
+# ✅ AMENDMENT U — 2026-11-07, after midnight: G5's fix round VERIFIED (`aeb0217`, `1cc87d9`); T.4's corrected sentences ACCEPTED by the author; G5 PASSED; P9.1 MERGED (M2), §6 ticked
+
+## U.1 The fix round, verified
+- **The chain since `d3cd0c3`:**
+  - `8172676`, the merge of `main` at `80f1387`: its tree differs from `main`'s only in the branch's own paths;
+  - `aeb0217`: `tests/test_erfc_determinism.py` only;
+  - `1cc87d9`: the packet's §17 and four evidence files, docs only.
+
+  None carries an AI trailer, and the five artifacts are unchanged since `c0daeb7`.
+- **`aeb0217` is T.3's change and nothing else.**
+  - **By AST,** the only statement of the module that differs is the guard's count assertion: 487 → 771, with its message. The
+    compared expression is unchanged.
+  - **T.3's quotation** is reproduced verbatim (689 characters, compared by program), with T.3's table of the 284.
+  - **Untouched:** the walk, `ONE_SIDED_PAIRS`, `_expected_p_value` and the `moved == []` assertion.
+- **In the coordinator's clone at `1cc87d9`:**
+  - `tests/test_erfc_determinism.py`: `57 passed`;
+  - the T-regress: `5 passed`, every artifact byte for byte;
+  - `check_test_hygiene.sh` and `check_english.sh` clean on the changed files;
+  - the whole suite in CI's setting: `3 failed, 3995 passed, 276 skipped, 30 warnings in 975.62s (0:16:15)`; the three failures are the sandbox's tmux refusals.
+- **The packet's §17** records the fix, the guard's own run (771 pairs, 0 moved) and the tails, with T.2-2 and T.2-3 as P9.1's
+  errors.
+
+## U.2 Rulings
+1. **The fix round is complete: G5 PASSED.**
+2. **The author's ruling** (2026-11-06, night): *"I accept the corrected A27(b) and A27(d) sentences as you wrote them."* T.4's
+   five sentences are A27's filled sentences:
+   - (b) and (d) as corrected;
+   - (c) and (e) as filled;
+   - (g) as P9.1 proposed it and the author accepted it.
+3. **P9.1's question (§17)** concerns the guard's docstring, which still opens *"487 published p-values (322 -> 330 -> 339 ->
+   351 -> 487)"*.
+   - T.3 did not list that line. It was the coordinator's omission: the earlier authorisations moved the line with the literal.
+   - It changes no number and no check, so it is `DEFERRED` 125. The next authorised change of the count closes it, updating the
+     line with the literal.
+4. **Merge M2,** now: `--no-ff`, with §6 ticked. The merge carries:
+   - this amendment and plan v3.46;
+   - `DEFERRED` 104's observation (R.4-4), 124 (T.2-4) and 125 (U.2-3);
+   - the coordinator's attributed note at the head of the packet's §10.
+5. **Next:** `BRIEF_48`'s amendment that clears P9.3's old cells (J.9), in the same push, and the CI ceiling, measured on that
+   push's run.
+
+## U.3 Next
+- **The author:** relay `BRIEF_48`'s new amendment to P9.3, and apply the CI ceiling patch when the coordinator hands it over.
+- **The coordinator:** the CI ceiling.
+- **P9.1:** done. Its worktree `/home/filip/rltraffic-p91` and the run trees stay until the author rules otherwise.

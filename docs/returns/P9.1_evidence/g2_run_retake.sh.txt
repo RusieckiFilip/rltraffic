@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# BRIEF_46 Amendment A: re-take G2's three timings -- bc_m, iql_m (grid, full 40,000 steps) and one D4RL iql_t seed --
+# each in a fresh process, each with P8.2's canary before and after and the 1-minute load average at its start and end,
+# with a 5-s Unix-time GPU trace as the no-pause witness. Everything under $S/retake.
+set -uo pipefail
+S=/tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad
+TREE=$1
+R=$S/retake
+mkdir -p "$R"
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+unset CUBLAS_WORKSPACE_CONFIG
+PY=/home/filip/rltraffic/.venv/bin/python
+echo "tree $TREE at $(git -C "$TREE" rev-parse HEAD); dirty=[$(git -C "$TREE" status --porcelain --untracked-files=no)]"
+( while :; do printf '%s,%s\n' "$(date -u +%s.%N)" "$(nvidia-smi --query-gpu=memory.used,utilization.gpu --format=csv,noheader,nounits | head -1 | tr -d ' ')"; sleep 5; done ) > "$R/gpu_trace.csv" 2>/dev/null &
+TRACE=$!
+canary() {  # $1 = timing dir, $2 = open|close
+  ( cd "$TREE" && PYTHONPATH=$TREE timeout -k 30 900 "$PY" -P -m offline.compute_latency canary --phase "$2" --out-dir "$1" ) 2>&1 | tail -1
+}
+load() { echo "$1 $(date -u +%s.%N) $(uptime)"; }
+for arm in bc_m iql_m; do
+  D=$R/$arm; mkdir -p "$D/output"
+  canary "$D" open
+  load "start $arm"
+  ( cd /home/filip/rltraffic && PYTHONPATH=$TREE "$PY" -P "$S/time_arm.py" "$arm" "$D/output" "$TREE" > "$D/stdout.txt" 2> "$D/stderr.txt" ); echo "$arm exit=$?"
+  load "end $arm"
+  canary "$D" close
+done
+D=$R/d4rl; mkdir -p "$D/out"
+canary "$D" open
+load "start d4rl"
+( cd "$TREE" && PYTHONPATH=$TREE /home/filip/d4rl-calib-venv/bin/python -P -m calibration.d4rl_run --threads 1 train \
+    --dataset /home/filip/d4rl-calib-data/halfcheetah_medium_expert-v2.hdf5 --out "$D/out" --arms iql --seeds 101 \
+    --iql-target-dropout off > "$D/stdout.txt" 2>&1 ); echo "d4rl exit=$?"
+load "end d4rl"
+canary "$D" close
+kill "$TRACE"
+"$PY" - "$R/gpu_trace.csv" <<'EOF'
+import sys
+samples = [float(line.split(",")[0]) for line in open(sys.argv[1]) if line.strip()]
+gaps = [(a, b) for a, b in zip(samples, samples[1:]) if b - a > 30.0]
+print(f"trace samples={len(samples)} span={samples[-1] - samples[0]:.1f}s max_step={max(b - a for a, b in zip(samples, samples[1:])):.1f}s gaps>30s={gaps}")
+EOF

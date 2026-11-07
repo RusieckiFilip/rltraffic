@@ -1,0 +1,83 @@
+[
+ {
+  "name": "B2-1 the module's window back to 600 s",
+  "file": "offline/stall_guard.py",
+  "old": "STALL_SECONDS: float = 120.0",
+  "new": "STALL_SECONDS: float = 600.0",
+  "tests": [
+   "tests/test_stall_guard.py"
+  ]
+ },
+ {
+  "name": "B2-2 the driver's window default back to 600",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "STALL_SECONDS=${P91_STALL_SECONDS:-120}",
+  "new": "STALL_SECONDS=${P91_STALL_SECONDS:-600}",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "B2-3 the driver's cap default back to 20",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "MAX_RESTARTS=${P91_MAX_RESTARTS:-60}",
+  "new": "MAX_RESTARTS=${P91_MAX_RESTARTS:-20}",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "B2-4 the window override ignored",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "STALL_SECONDS=${P91_STALL_SECONDS:-120}",
+  "new": "STALL_SECONDS=120",
+  "tests": [
+   "tests/test_corrective_round_driver.py::test_the_environment_overrides_reach_every_attempt_and_the_cap"
+  ]
+ },
+ {
+  "name": "B2-5 the cap override ignored",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "MAX_RESTARTS=${P91_MAX_RESTARTS:-60}",
+  "new": "MAX_RESTARTS=60",
+  "tests": [
+   "tests/test_corrective_round_driver.py::test_the_environment_overrides_reach_every_attempt_and_the_cap"
+  ]
+ },
+ {
+  "name": "B2-6 the driver hands the worker no window",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "\"$@\" --stall-dump \"$dump\" --stall-seconds \"$STALL_SECONDS\" || code=$?",
+  "new": "\"$@\" --stall-dump \"$dump\" || code=$?",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "B2-7 the CLI arms the default whatever it is given",
+  "file": "offline/corrective_round.py",
+  "old": "stall_guard.install(args.stall_dump, seconds=float(args.stall_seconds))",
+  "new": "stall_guard.install(args.stall_dump, seconds=stall_guard.STALL_SECONDS)",
+  "tests": [
+   "tests/test_stall_guard.py"
+  ]
+ },
+ {
+  "name": "B2-8 the overrides not validated",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "[[ \"$STALL_SECONDS\" =~ ^[0-9]+$ ]] && [ \"$STALL_SECONDS\" -gt 10 ] \\\n",
+  "new": "true \\\n",
+  "tests": [
+   "tests/test_corrective_round_driver.py::test_a_bad_override_is_refused_before_anything_runs"
+  ]
+ },
+ {
+  "name": "B2-9 audit: a machine path used before the argument refusals",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "case \"$STAGE\" in collect|campaign|d4rl) ;; *) refuse \"unknown stage $STAGE\" ;; esac\n",
+  "new": "[ -x \"$PY\" ] || refuse \"no interpreter at $PY\"\ncase \"$STAGE\" in collect|campaign|d4rl) ;; *) refuse \"unknown stage $STAGE\" ;; esac\n",
+  "tests": [
+   "tests/test_corrective_round_driver.py::test_every_driver_run_a_test_makes_names_a_machine_path_only_in_an_assignment"
+  ]
+ }
+]

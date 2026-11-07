@@ -1,0 +1,19 @@
+# G4's end-to-end report tests on a full-size fixture run tree: one pytest process, OMP/MKL 1, RLTRAFFIC_OUTPUT_ROOT and
+# RLTRAFFIC_CORPUS_V11 set; load 2.48 -> 2.80 (the campaign training on the GPU)
+33.49s call     tests/test_corrective_report_fixture_tree.py::test_the_report_rebuilds_byte_for_byte_from_the_tree
+11.83s setup    tests/test_corrective_report_fixture_tree.py::test_the_fixture_tree_is_the_campaigns_full_size
+6.35s setup    tests/test_corrective_report_fixture_tree.py::test_load_sources_joins_every_new_old_and_constructed_cell_at_its_size
+4.09s setup    tests/test_corrective_report_fixture_tree.py::test_every_artifact_builds_and_carries_the_records_and_runs_of_every_cell_it_reads
+0.62s call     tests/test_corrective_report_fixture_tree.py::test_the_fixture_tree_is_the_campaigns_full_size
+8 passed in 58.13s
+
+# mutants against a control (runner: PYTHONDONTWRITEBYTECODE=1, files restored and sha256-checked); G4-2's reason, read by
+# re-running it alone: ValueError: behaviour@mix33 constructed from p4_6:behaviour@random and p4_6:behaviour@mappo1000 is
+# not P4.7's committed cell on 500 episode(s), first [(101, 1000)]
+control (unmutated, 1 test targets): exit 0; 8 passed in 57.39s
+mutant                                                    result    evidence
+G4-1 the trace's gaps not handed to the pause flagging    KILLED    FAILED tests/test_corrective_report_fixture_tree.py::test_the_planted_pause_is_flagged_on_its_run_and_on_no_other
+G4-2 the mixture references built from swapped components KILLED    exit 1
+G4-3 a new cell's records short of one episode            KILLED    FAILED tests/test_corrective_report_fixture_tree.py::test_load_sources_joins_every_new_old_and_constructed_cell_at_its_size
+G4-4 hz1x1's random-tier IQL wired to fixedtime's old cellKILLED    FAILED tests/test_corrective_report_fixture_tree.py::test_a_new_against_old_contrast_is_the_fixtures_own_arithmetic
+every file restored, sha256 equal to the original

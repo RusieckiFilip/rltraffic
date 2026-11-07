@@ -1,0 +1,173 @@
+[
+ {
+  "name": "G1 a window ends only at the next TRAINING session (other stages ignored)",
+  "file": "offline/corrective_report.py",
+  "old": "index = max((i for i, session in enumerate(sessions) if float(session[\"start_unix\"]) <= started), default=None)",
+  "new": "index = max((i for i, session in enumerate(sessions) if float(session[\"start_unix\"]) <= started and session[\"stage\"] in TRAINING_STAGES), default=None)",
+  "tests": [
+   "tests/test_corrective_report_sessions.py"
+  ]
+ },
+ {
+  "name": "G2 the earliest session that started before the run, not the latest",
+  "file": "offline/corrective_report.py",
+  "old": "index = max((i for i, session in enumerate(sessions) if float(session[\"start_unix\"]) <= started), default=None)",
+  "new": "index = min((i for i, session in enumerate(sessions) if float(session[\"start_unix\"]) <= started), default=None)",
+  "tests": [
+   "tests/test_corrective_report_sessions.py"
+  ]
+ },
+ {
+  "name": "G3 a run that outlives its session accepted",
+  "file": "offline/corrective_report.py",
+  "old": "if index + 1 < len(sessions) and finished > float(sessions[index + 1][\"start_unix\"]):",
+  "new": "if False and index + 1 < len(sessions) and finished > float(sessions[index + 1][\"start_unix\"]):",
+  "tests": [
+   "tests/test_corrective_report_sessions.py"
+  ]
+ },
+ {
+  "name": "G4 a token line's commit may be any word",
+  "file": "offline/corrective_report.py",
+  "old": "(?P<commit>[0-9a-f]{7,40})",
+  "new": "(?P<commit>\\S+)",
+  "tests": [
+   "tests/test_corrective_report_sessions.py"
+  ]
+ },
+ {
+  "name": "G5 the stamp read as local time",
+  "file": "offline/corrective_report.py",
+  "old": "start = calendar.timegm(time.strptime(match[\"stamp\"], \"%Y%m%dT%H%M%SZ\"))",
+  "new": "start = time.mktime(time.strptime(match[\"stamp\"], \"%Y%m%dT%H%M%SZ\"))",
+  "tests": [
+   "tests/test_corrective_report_sessions.py"
+  ]
+ },
+ {
+  "name": "G6 two token lines with one stamp accepted",
+  "file": "offline/corrective_report.py",
+  "old": "        if stamps.count(stamp) > 1:",
+  "new": "        if stamps.count(stamp) > 2:",
+  "tests": [
+   "tests/test_corrective_report_sessions.py"
+  ]
+ },
+ {
+  "name": "G7 the code commit is the session's stamp",
+  "file": "offline/corrective_report.py",
+  "old": "    return {\"code_commit\": session[\"code_commit\"], \"run_tree\": session[\"run_tree\"],",
+  "new": "    return {\"code_commit\": session[\"stamp\"], \"run_tree\": session[\"run_tree\"],",
+  "tests": [
+   "tests/test_corrective_report_sessions.py"
+  ]
+ },
+ {
+  "name": "G8 load_sources does not attach the session",
+  "file": "offline/corrective_report.py",
+  "old": "                entries.append({**entry, **run_session(entry, sessions)})",
+  "new": "                entries.append(entry)",
+  "tests": [
+   "tests/test_corrective_report_fixture_tree.py"
+  ]
+ },
+ {
+  "name": "G9 the artifacts do not state the rule",
+  "file": "offline/corrective_report.py",
+  "old": "        \"code_commit_rule\": CODE_COMMIT_RULE,\n",
+  "new": "",
+  "tests": [
+   "tests/test_corrective_report_fixture_tree.py"
+  ]
+ },
+ {
+  "name": "Q1 final_q_loss read from final_policy_loss",
+  "file": "offline/corrective_report.py",
+  "old": "        value = diagnostics[key]\n",
+  "new": "        value = diagnostics[\"final_policy_loss\" if key == \"final_q_loss\" else key]\n",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "Q2 only hz1x1's iql_t runs",
+  "file": "offline/corrective_report.py",
+  "old": "        if cell.arm != \"iql_t\":\n            continue\n        where = f\"{cell.scenario}:{cell.key} seed {int(seed)}\"",
+  "new": "        if cell.arm != \"iql_t\" or cell.scenario != \"hz1x1\":\n            continue\n        where = f\"{cell.scenario}:{cell.key} seed {int(seed)}\"",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "Q3 the re-run's comparison digest not checked",
+  "file": "offline/corrective_report.py",
+  "old": "    if compared != digest:\n",
+  "new": "    if False:\n",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "Q4 the registered iql rows read from the re-run's file",
+  "file": "offline/corrective_report.py",
+  "old": "    for arm, payload, source in ((\"iql\", json.loads(registered_bytes), REGISTERED_D4RL),",
+  "new": "    for arm, payload, source in ((\"iql\", rerun, REGISTERED_D4RL),",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "Q5 a non-finite value accepted",
+  "file": "offline/corrective_report.py",
+  "old": "or not math.isfinite(value):",
+  "new": "or False:",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "Q6 the block not placed beside the d4rl section",
+  "file": "offline/corrective_report.py",
+  "old": "        \"iql_diagnostics\": src.diagnostics,\n",
+  "new": "",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "Q7 a record that is not its run's accepted",
+  "file": "offline/corrective_report.py",
+  "old": "        if identity != (cr.RUN_RECORD_FORMAT_VERSION, cell.scenario, cell.tier, cell.arm, int(seed)):",
+  "new": "        if False:",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "Q8 a D4RL arm missing a seed accepted",
+  "file": "offline/corrective_report.py",
+  "old": "        if found != seeds:\n",
+  "new": "        if False:\n",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "Q9 load_sources carries no diagnostics",
+  "file": "offline/corrective_report.py",
+  "old": "                   diagnostics=iql_diagnostics(roots, d4rl_path))",
+  "new": "                   diagnostics=None)",
+  "tests": [
+   "tests/test_corrective_report_fixture_tree.py"
+  ]
+ },
+ {
+  "name": "Q10 the D4RL rows' arms swapped (iql_t from the registered file)",
+  "file": "offline/corrective_report.py",
+  "old": "                                 (\"iql_t\", rerun, rerun_path.name)):",
+  "new": "                                 (\"iql_t\", json.loads(registered_bytes), rerun_path.name)):",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ }
+]

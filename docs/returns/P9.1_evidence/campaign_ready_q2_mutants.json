@@ -1,0 +1,2 @@
+[{"name": "Q2a the typed target off by one", "file": "offline/method_tier_grid.py", "old": "        target_rtg=-35517.0,\n        rtg_scale=41135.0,", "new": "        target_rtg=-35516.0,\n        rtg_scale=41135.0,", "tests": ["tests/test_random_fresh_prompt.py"]},
+ {"name": "Q2b the typed scale off by one", "file": "offline/method_tier_grid.py", "old": "        target_rtg=-35517.0,\n        rtg_scale=41135.0,", "new": "        target_rtg=-35517.0,\n        rtg_scale=41134.0,", "tests": ["tests/test_random_fresh_prompt.py"]}]

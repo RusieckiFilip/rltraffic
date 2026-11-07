@@ -1,0 +1,7 @@
+# trial merge: task/p9.1-m1 (0095758) into a detached copy of task/p9.1-a27a at dd92a16, --no-commit, the tier_sweep
+# conflict resolved as in campaign_ready_m1_merge_resolution.diff; 26 test files (M1's, the corrective suites, M1's
+# regression suites), RLTRAFFIC_CORPUS_V11 and RLTRAFFIC_OUTPUT_ROOT set, OMP/MKL 1; the copy was then discarded
+...........s.................................................s.sssss.... [ 85%]
+............................................s.ss........................ [ 94%]
+..............................................                           [100%]
+821 passed, 17 skipped in 138.11s (0:02:18)

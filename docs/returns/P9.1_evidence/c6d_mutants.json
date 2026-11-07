@@ -1,0 +1,119 @@
+[
+ {
+  "name": "L1 old id keeps one prefix part",
+  "file": "offline/corrective_report.py",
+  "old": "    return f\"{'_'.join(Path(artifact).stem.split('_')[:2])}:{arm}\"",
+  "new": "    return f\"{'_'.join(Path(artifact).stem.split('_')[:1])}:{arm}\"",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "L2 madt read from p4_4_training",
+  "file": "offline/corrective_report.py",
+  "old": "    if task == \"p4_4\" and arm == \"madt\":",
+  "new": "    if False:",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "L3 tier filter dropped",
+  "file": "offline/corrective_report.py",
+  "old": "        runs = [r for r in record if r[\"method\"] == method and (task == \"p4_4\" or r[\"tier\"] == tier)]",
+  "new": "        runs = [r for r in record if r[\"method\"] == method]",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "L4 five-run check dropped",
+  "file": "offline/corrective_report.py",
+  "old": "    if sorted(int(r[\"seed\"]) for r in runs) != [101, 202, 303, 404, 505]:\n        raise ValueError(f\"{source} does not hold exactly the five runs of {cell_id}\")",
+  "new": "    if False:\n        raise ValueError(\"x\")",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "L5 p5_2b seconds from steps",
+  "file": "offline/corrective_report.py",
+  "old": "    return sorted(({\"cell\": tst.CORRECTED_IQL, \"seed\": int(r[\"seed\"]), \"seconds\": float(r[\"seconds\"]),",
+  "new": "    return sorted(({\"cell\": tst.CORRECTED_IQL, \"seed\": int(r[\"seed\"]), \"seconds\": float(r[\"gradient_steps\"]),",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "L6 p3a registered keyed as new",
+  "file": "offline/corrective_report.py",
+  "old": "        key = registered.get((cell.scenario, cell.key), new_cell_id(cell))",
+  "new": "        key = new_cell_id(cell)",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "L7 per-intersection digest of the joint",
+  "file": "offline/corrective_report.py",
+  "old": "            per_ix[i].add(action_sequence_sha256(column.reshape(-1, 1)))",
+  "new": "            per_ix[i].add(action_sequence_sha256(np.stack(columns, axis=1)))",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "L8 d4rl without compare-with accepted",
+  "file": "offline/corrective_report.py",
+  "old": "    if \"compare_with\" not in payload:\n        raise ValueError(",
+  "new": "    if False:\n        raise ValueError(",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "L9 d4rl seconds from wall",
+  "file": "offline/corrective_report.py",
+  "old": "    runs = [{\"arm\": str(c[\"arm\"]), \"seed\": int(c[\"seed\"]), \"seconds\": float(c[\"training_seconds\"]),",
+  "new": "    runs = [{\"arm\": str(c[\"arm\"]), \"seed\": int(c[\"seed\"]), \"seconds\": float(c[\"wall_seconds\"]),",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "L10 digest ignores exclusions",
+  "file": "offline/corrective_report.py",
+  "old": "                   and not any(s == path or s in path.parents for s in skipped))",
+  "new": "                   )",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "L11 digest unsorted",
+  "file": "offline/corrective_report.py",
+  "old": "    paths = sorted(path for path in base.rglob(\"*\") if path.is_file()",
+  "new": "    paths = list(path for path in base.rglob(\"*\") if path.is_file()",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "L12 a different artifact overwritten",
+  "file": "offline/corrective_report.py",
+  "old": "            if target.exists() and target.read_text(encoding=\"utf-8\") != text:\n                raise FileExistsError(",
+  "new": "            if False:\n                raise FileExistsError(",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "L13 grid seconds invented",
+  "file": "offline/corrective_report.py",
+  "old": "        runs.append({\"cell\": spec.cell_id, \"seed\": int(seed), \"seconds\": None,",
+  "new": "        runs.append({\"cell\": spec.cell_id, \"seed\": int(seed), \"seconds\": 0.0,",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ }
+]

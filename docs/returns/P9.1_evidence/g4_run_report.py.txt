@@ -1,0 +1,90 @@
+"""G4 (BRIEF_46 S.4, step 4): S.4's report command, run under /usr/bin/time -v with a watch.
+
+The watch stops the report if it passes 30 minutes or 8 GiB of resident memory (the process tree's RSS, polled every
+second). The listings of output/p9_1, output/p9_1_runs and the corpus root (path, mode, size, mtime_ns of every
+entry) are taken before and after and compared by program.
+
+Usage: python -P run_report.py LOG
+"""
+import os
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+REPO = "/home/filip/rltraffic-p91"
+MAIN = Path("/home/filip/rltraffic")
+WATCHED = (MAIN / "output" / "p9_1", MAIN / "output" / "p9_1_runs", MAIN / "datasets_v11")
+LIMIT_SECONDS, LIMIT_BYTES = 30 * 60.0, 8 * 1024 ** 3
+COMMAND = ["/usr/bin/time", "-v", str(MAIN / ".venv/bin/python"), "-P", "-m", "offline.corrective_report",
+           "--repo-root", REPO, "--output-root", str(MAIN / "output"), "--corpus-root", str(MAIN / "datasets_v11"),
+           "--draws-root", str(MAIN / "scenarios/draws"),
+           "--d4rl", str(MAIN / "output/p9_1_runs/d4rl_outputs_20261028T192029Z/p8_3_train_k64_40000_iql_t.json"),
+           "report"]
+
+
+def listing() -> dict[str, tuple[int, int, int]]:
+    entries = {}
+    for root in WATCHED:
+        st = root.lstat()
+        entries[str(root)] = (st.st_mode, st.st_size, st.st_mtime_ns)
+        for directory, dirnames, filenames in os.walk(root):
+            for name in dirnames + filenames:
+                path = Path(directory) / name
+                st = path.lstat()
+                entries[str(path)] = (st.st_mode, st.st_size, st.st_mtime_ns)
+    return entries
+
+
+def tree_rss(root_pid: int) -> int:
+    children: dict[int, list[int]] = {}
+    for entry in os.listdir("/proc"):
+        if entry.isdigit():
+            try:
+                fields = Path(f"/proc/{entry}/stat").read_text().rsplit(")", 1)[1].split()
+                children.setdefault(int(fields[1]), []).append(int(entry))
+            except (OSError, IndexError, ValueError):
+                continue
+    total, stack = 0, [root_pid]
+    while stack:
+        pid = stack.pop()
+        stack.extend(children.get(pid, []))
+        try:
+            for line in Path(f"/proc/{pid}/status").read_text().splitlines():
+                if line.startswith("VmRSS:"):
+                    total += int(line.split()[1]) * 1024
+        except OSError:
+            continue
+    return total
+
+
+log = Path(sys.argv[1])
+before = listing()
+print(f"listing before: {len(before)} entries under {', '.join(map(str, WATCHED))}", flush=True)
+env = {**os.environ, "CUDA_VISIBLE_DEVICES": "", "OMP_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "PYTHONPATH": REPO}
+started = time.time()
+with log.open("w") as out:
+    process = subprocess.Popen(COMMAND, cwd=REPO, env=env, stdout=out, stderr=subprocess.STDOUT, start_new_session=True)
+    peak, stopped = 0, None
+    while process.poll() is None:
+        rss = tree_rss(process.pid)
+        peak = max(peak, rss)
+        if rss > LIMIT_BYTES or time.time() - started > LIMIT_SECONDS:
+            stopped = "8 GiB" if rss > LIMIT_BYTES else "30 min"
+            os.killpg(process.pid, signal.SIGTERM)
+            process.wait(timeout=60)
+            break
+        time.sleep(1.0)
+wall = time.time() - started
+print(f"report exit {process.returncode}; wall {wall:.1f} s; the watch's peak tree RSS {peak / 1024 ** 3:.3f} GiB; "
+      f"stopped by the watch: {stopped}", flush=True)
+after = listing()
+added = sorted(set(after) - set(before))
+removed = sorted(set(before) - set(after))
+changed = sorted(path for path in set(before) & set(after) if before[path] != after[path])
+print(f"listing after: {len(after)} entries; added {len(added)}, removed {len(removed)}, changed {len(changed)}"
+      f" -> {'UNCHANGED' if not (added or removed or changed) else 'CHANGED'}", flush=True)
+for kind, paths in (("added", added), ("removed", removed), ("changed", changed)):
+    for path in paths[:20]:
+        print(f"  {kind}: {path}", flush=True)

@@ -1,0 +1,228 @@
+[
+ {
+  "name": "E1 the hours plan ignored",
+  "file": "offline/corrective_round.py",
+  "old": "                     or (hours is not None and total + cost > float(hours) * 3600.0)):",
+  "new": "                     or False):",
+  "tests": [
+   "tests/test_corrective_round_sessions.py"
+  ]
+ },
+ {
+  "name": "E2a the stop file ignored between runs",
+  "file": "offline/corrective_round.py",
+  "old": "        if stop.exists():\n            ended_by = \"the stop file\"",
+  "new": "        if False:\n            ended_by = \"the stop file\"",
+  "tests": [
+   "tests/test_corrective_round_sessions.py"
+  ]
+ },
+ {
+  "name": "E2b the stop file ignored at the start",
+  "file": "offline/corrective_round.py",
+  "old": "    if stop.exists():\n        raise ValueError(f\"{stop} exists: no session starts",
+  "new": "    if False:\n        raise ValueError(f\"{stop} exists: no session starts",
+  "tests": [
+   "tests/test_corrective_round_sessions.py"
+  ]
+ },
+ {
+  "name": "E2c the stop file ignored by the evaluation",
+  "file": "offline/corrective_round.py",
+  "old": "    if stop_file(roots).exists():\n        return \"the stop file\"",
+  "new": "    if False:\n        return \"the stop file\"",
+  "tests": [
+   "tests/test_corrective_round_sessions.py",
+   "tests/test_att_rederivation_should_stop.py"
+  ]
+ },
+ {
+  "name": "E3 a run started after the stop file (no check before the first run)",
+  "file": "offline/corrective_round.py",
+  "old": "        if stop.exists():\n            ended_by = \"the stop file\"",
+  "new": "        if stop.exists() and trained:\n            ended_by = \"the stop file\"",
+  "tests": [
+   "tests/test_corrective_round_sessions.py"
+  ]
+ },
+ {
+  "name": "E4 a run interrupted by the stop file (train_run checks it before the move)",
+  "file": "offline/corrective_round.py",
+  "old": "    finished_unix = time.time()\n    assert_target(final, roots)\n    os.replace(partial, final)",
+  "new": "    finished_unix = time.time()\n    assert_target(final, roots)\n    if stop_file(roots).exists():\n        raise RuntimeError(\"interrupted by the stop file\")\n    os.replace(partial, final)",
+  "tests": [
+   "tests/test_corrective_round_sessions.py"
+  ]
+ },
+ {
+  "name": "E5 evaluate started with a missing run",
+  "file": "offline/corrective_round.py",
+  "old": "        if not training[\"complete\"]:\n            missing = int(",
+  "new": "        if False:\n            missing = int(",
+  "tests": [
+   "tests/test_corrective_round_sessions.py"
+  ]
+ },
+ {
+  "name": "E6 a second declaration that differs accepted",
+  "file": "offline/corrective_round.py",
+  "old": "    manifests = _evaluation_manifests(roots)\n    for path, manifest in manifests.values():\n        _assert_manifest_is(path, manifest)\n    for path, manifest in manifests.values():\n        if not path.exists():",
+  "new": "    manifests = _evaluation_manifests(roots)\n    for path, manifest in manifests.values():\n        pass\n    for path, manifest in manifests.values():\n        if not path.exists():",
+  "tests": [
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "E7 max_runs ignored",
+  "file": "offline/corrective_round.py",
+  "old": "        if runs and ((max_runs is not None and len(runs) >= int(max_runs))",
+  "new": "        if runs and ((False)",
+  "tests": [
+   "tests/test_corrective_round_sessions.py"
+  ]
+ },
+ {
+  "name": "E8 the first run not always included",
+  "file": "offline/corrective_round.py",
+  "old": "        if runs and ((max_runs is not None",
+  "new": "        if ((max_runs is not None",
+  "tests": [
+   "tests/test_corrective_round_sessions.py"
+  ]
+ },
+ {
+  "name": "E9 P8.4b's runner never asks",
+  "file": "offline/att_rederivation.py",
+  "old": "        if should_stop is not None and should_stop():",
+  "new": "        if False:",
+  "tests": [
+   "tests/test_att_rederivation_should_stop.py"
+  ]
+ },
+ {
+  "name": "E10 evaluate's per-cell question dropped",
+  "file": "offline/corrective_round.py",
+  "old": "        reason = session_stop_reason(roots, deadline_unix)\n        if reason is not None:\n            stopped_by, left = reason, chosen[position:]",
+  "new": "        reason = None\n        if reason is not None:\n            stopped_by, left = reason, chosen[position:]",
+  "tests": [
+   "tests/test_corrective_round_sessions.py"
+  ]
+ },
+ {
+  "name": "E11 route (ii) not handed the deadline",
+  "file": "offline/corrective_round.py",
+  "old": "                                  should_stop=lambda: session_stop_reason(roots, deadline_unix) is not None)\n    finally:\n        pin_torch_threads(previous)\n    if outcome[\"n_refused\"]:\n        first = outcome[\"refused\"][0]\n        raise RuntimeError(\n            f\"route (ii)",
+  "new": "                                  should_stop=lambda: session_stop_reason(roots, None) is not None)\n    finally:\n        pin_torch_threads(previous)\n    if outcome[\"n_refused\"]:\n        first = outcome[\"refused\"][0]\n        raise RuntimeError(\n            f\"route (ii)",
+  "tests": [
+   "tests/test_corrective_round_sessions.py"
+  ]
+ },
+ {
+  "name": "E12 the CLI drops --hours",
+  "file": "offline/corrective_round.py",
+  "old": "result = train(roots, cells=cells, device=args.device, log_every=args.log_every, hours=args.hours,",
+  "new": "result = train(roots, cells=cells, device=args.device, log_every=args.log_every, hours=None,",
+  "tests": [
+   "tests/test_corrective_round_sessions.py"
+  ]
+ },
+ {
+  "name": "E13 the train check ignores the stop file",
+  "file": "offline/corrective_round.py",
+  "old": "    if stage in (\"train\", \"evaluate\") and stop_file(roots).exists():",
+  "new": "    if stage in (\"evaluate\",) and stop_file(roots).exists():",
+  "tests": [
+   "tests/test_corrective_round_sessions.py"
+  ]
+ },
+ {
+  "name": "D1 the campaign stage not retired",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "[ \"$STAGE\" != campaign ] || refuse \"the campaign stage is retired",
+  "new": "[ \"$STAGE\" != campaign ] || echo \"the campaign stage is retired",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "D2 the session hours not validated",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "[[ \"$SESSION_HOURS\" =~ ^[0-9]*([.][0-9]+)?$ && \"$SESSION_HOURS\" =~ [1-9] ]] \\\n  || refuse",
+  "new": "[[ \"$SESSION_HOURS\" =~ ^[0-9]*([.][0-9]+)?$ || \"$SESSION_HOURS\" =~ [1-9] ]] \\\n  || refuse",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "D3 a session starts while STOP exists",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "[ ! -e \"$RUNS/STOP\" ] || refuse \"$RUNS/STOP exists",
+  "new": "true || refuse \"$RUNS/STOP exists",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "D4 the evaluate shards not handed the deadline",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "    shards evaluate --deadline-unix \"$DEADLINE\"\n",
+  "new": "    shards evaluate\n",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "D5 a train session not handed its hours",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "    run_logged train cr train --hours \"$SESSION_HOURS\"\n",
+  "new": "    run_logged train cr train\n",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "P1 train_run changed (the device field)",
+  "file": "offline/corrective_round.py",
+  "old": "        \"device\": str(device),",
+  "new": "        \"device\": str(device).upper(),",
+  "tests": [
+   "tests/test_corrective_round_training_path.py"
+  ]
+ },
+ {
+  "name": "P2 a trainer's file changed (offline_baselines.py)",
+  "file": "offline/offline_baselines.py",
+  "old": "def equivalence_verdict(",
+  "new": "def equivalence_verdict(  # changed",
+  "tests": [
+   "tests/test_corrective_round_training_path.py"
+  ]
+ },
+ {
+  "name": "S1 the stop file refuses every stage again (11476c0's line)",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "case \"$STAGE\" in train|evaluate) [ ! -e \"$RUNS/STOP\" ] || refuse \"$RUNS/STOP exists: no session starts while it exists (the author removes it, by hand, to start one)\" ;; esac",
+  "new": "[ ! -e \"$RUNS/STOP\" ] || refuse \"$RUNS/STOP exists: no session starts while it exists (the author removes it, by hand, to start one)\"",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "S2 the session hours validated for every stage",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "case \"$STAGE\" in train|evaluate) [[ \"$SESSION_HOURS\"",
+  "new": "case \"$STAGE\" in *) [[ \"$SESSION_HOURS\"",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "S3 the stop file for the train stage only",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "case \"$STAGE\" in train|evaluate) [ ! -e \"$RUNS/STOP\" ]",
+  "new": "case \"$STAGE\" in train) [ ! -e \"$RUNS/STOP\" ]",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ }
+]

@@ -1,0 +1,29 @@
+# C6c mutation table, run in this session (offline/corrective_report.py's builders against tests/test_corrective_report_build.py)
+
+## Table 1 -- 18 mutants
+mutant                                           result    evidence
+B1 records skip a compared cell                  KILLED    FAILED tests/test_corrective_report_build.py::test_the_budget_artifact_pairs_each_100k_cell_with_its_registered_40k_cell_and_labels_mix50_beyond_a8b
+B2 dirty tree accepted                           KILLED    FAILED tests/test_corrective_report_build.py::test_an_artifact_is_written_deterministically_and_refused_from_a_dirty_tree_or_with_a_nan
+B3 label of another point                        KILLED    FAILED tests/test_corrective_report_build.py::test_the_mixture_artifact_scores_the_four_contrasts_and_the_window_on_the_mixtures_own_cells
+B4 mixture parents swapped in                    KILLED    FAILED tests/test_corrective_report_build.py::test_the_mixture_artifact_scores_the_four_contrasts_and_the_window_on_the_mixtures_own_cells
+B5 budget 40k from the wrong tier                SURVIVED  12 passed in 1.76s
+B6 budget scopes swapped                         KILLED    FAILED tests/test_corrective_report_build.py::test_the_budget_artifact_pairs_each_100k_cell_with_its_registered_40k_cell_and_labels_mix50_beyond_a8b
+B7 plateau counts include plateaued              KILLED    FAILED tests/test_corrective_report_build.py::test_the_plateau_counts_the_paper_quotes_reproduce_from_the_committed_training_records
+B8 exposure counts every statement               KILLED    FAILED tests/test_corrective_report_build.py::test_exposure_parity_counts_the_registered_statements_that_move_by_its_own_route
+B9 stray moves tolerated                         SURVIVED  12 passed in 1.74s
+B10 sentence uses dt_spatial                     KILLED    FAILED tests/test_corrective_report_build.py::test_the_exposure_sentence_contrasts_are_dt_nomix_against_the_matched_bc_and_iql_on_mappo1000
+B11 grid iql registered random as_committed      KILLED    FAILED tests/test_corrective_report_build.py::test_iql_targets_pairs_every_tier_and_summarises_the_twelve
+B12 twelve counts hz1x1 only                     KILLED    FAILED tests/test_corrective_report_build.py::test_iql_targets_pairs_every_tier_and_summarises_the_twelve
+B13 iql rescore keeps every statement            KILLED    FAILED tests/test_corrective_report_build.py::test_the_iql_rescore_keeps_only_p5_2_statements_that_read_an_iql_cell
+B14 a6 against the old iql twice                 KILLED    FAILED tests/test_corrective_report_build.py::test_iql_targets_pairs_every_tier_and_summarises_the_twelve
+B15 fresh collapse one reference                 KILLED    FAILED tests/test_corrective_report_build.py::test_every_collapse_check_runs_against_both_references_on_both_scenarios
+B16 grid p3a joint                               SURVIVED  12 passed in 2.47s
+B17 q6 fresh anchor not substituted              SURVIVED  12 passed in 2.27s
+B18 p3b grid old uses as_committed               KILLED    FAILED tests/test_corrective_report_build.py::test_p3b_reports_the_iql_lead_on_both_tiers_of_both_scenarios
+
+## Re-run of the four survivors after the four tests were added
+mutant                                           result    evidence
+B5 budget 40k from the wrong tier                KILLED    FAILED tests/test_corrective_report_build.py::test_every_100k_cell_is_paired_with_the_registered_40k_cell_of_its_own_tier_and_arm
+B9 stray moves tolerated                         KILLED    FAILED tests/test_corrective_report_build.py::test_a_statement_that_moves_without_reading_a_replaced_cell_is_refused
+B16 grid p3a joint                               KILLED    FAILED tests/test_corrective_report_build.py::test_on_the_grid_p3a_counts_a_repeated_intersection_even_when_the_joint_sequence_is_new
+B17 q6 fresh anchor not substituted              KILLED    FAILED tests/test_corrective_report_build.py::test_q6_against_the_fresh_reference_reads_the_fresh_reference_and_the_registered_one_reads_p5_1s_anchor

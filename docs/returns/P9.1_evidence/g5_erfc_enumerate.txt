@@ -1,0 +1,33 @@
+# BRIEF_46 T.3: the guard's pairs enumerated BEFORE the literal was touched (at 8172676, the merge of main at 80f1387),
+# by a replica of the guard's own walk over docs/data and the test module's own _expected_p_value; script g5_erfc_enumerate.py.txt
+pairs 771; outside p9_1_*: 487; in p9_1_*: 284
+by artifact: {'p9_1_random_fresh.json': 122, 'p9_1_iql_targets.json': 74, 'p9_1_budget.json': 64, 'p9_1_mixture.json': 16, 'p9_1_exposure_parity.json': 8}
+    12  p9_1_budget.json.tiers.mappo1000.concordance.{d}.pairs[*].at_100k.paired_comparison.wilcoxon
+    12  p9_1_budget.json.tiers.mappo1000.concordance.{d}.pairs[*].at_40k.paired_comparison.wilcoxon
+     8  p9_1_budget.json.tiers.mappo1000.differences[*].by_definition.{d}.paired_comparison.wilcoxon
+    12  p9_1_budget.json.tiers.mix50.concordance.{d}.pairs[*].at_100k.paired_comparison.wilcoxon
+    12  p9_1_budget.json.tiers.mix50.concordance.{d}.pairs[*].at_40k.paired_comparison.wilcoxon
+     8  p9_1_budget.json.tiers.mix50.differences[*].by_definition.{d}.paired_comparison.wilcoxon
+     4  p9_1_exposure_parity.json.sentence_contrasts.matched[*].by_definition.{d}.paired_comparison.wilcoxon
+     4  p9_1_exposure_parity.json.sentence_contrasts.original[*].by_definition.{d}.paired_comparison.wilcoxon
+     8  p9_1_iql_targets.json.grid4x4.tiers[*].by_definition.{d}.paired_comparison.wilcoxon
+     8  p9_1_iql_targets.json.grid4x4_exposure_against_dropout.tiers[*].by_definition.{d}.paired_comparison.wilcoxon
+     2  p9_1_iql_targets.json.grid4x4_original_random_beside.by_definition.{d}.paired_comparison.wilcoxon
+    16  p9_1_iql_targets.json.hz1x1.tiers[*].by_definition.{d}.paired_comparison.wilcoxon
+     4  p9_1_iql_targets.json.hz1x1_iql_lead_on_random[*].by_definition.{d}.paired_comparison.wilcoxon
+    18  p9_1_iql_targets.json.iql_behaviour_comparisons.comparisons[*].original.{d}.wilcoxon
+    18  p9_1_iql_targets.json.iql_behaviour_comparisons.comparisons[*].rescored.{d}.wilcoxon
+     2  p9_1_mixture.json.beside.iql_t_within_5_s.arms[*].by_definition.{d}.paired_comparison.wilcoxon
+     8  p9_1_mixture.json.predictions.orderings.contrasts[*].by_definition.{d}.paired_comparison.wilcoxon
+     6  p9_1_mixture.json.predictions.within_5_s.arms[*].by_definition.{d}.paired_comparison.wilcoxon
+    24  p9_1_random_fresh.json.collapse.grid4x4.original_random_tier.rows[*].by_definition.{d}.paired_comparison.wilcoxon
+    20  p9_1_random_fresh.json.collapse.grid4x4.random_fresh_tier.rows[*].by_definition.{d}.paired_comparison.wilcoxon
+    16  p9_1_random_fresh.json.collapse.hz1x1.original_random_tier.rows[*].by_definition.{d}.paired_comparison.wilcoxon
+    20  p9_1_random_fresh.json.collapse.hz1x1.random_fresh_tier.rows[*].by_definition.{d}.paired_comparison.wilcoxon
+    10  p9_1_random_fresh.json.p3b.contrasts[*].by_definition.{d}.paired_comparison.wilcoxon
+    16  p9_1_random_fresh.json.q6_both_anchors.random_fresh[*].numbers.paired_comparison.wilcoxon
+    16  p9_1_random_fresh.json.q6_both_anchors.registered_five_schedule[*].numbers.paired_comparison.wilcoxon
+p9_1 pairs carrying an alternative: 0
+the one-sided pairs are exactly ONE_SIDED_PAIRS: True (12)
+p9_1 pairs with z = 0.0 and p = 1.0: 0
+moved (recomputed != committed under ==): 0 of 771

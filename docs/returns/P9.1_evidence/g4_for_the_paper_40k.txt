@@ -1,0 +1,24 @@
+mappo1000 att_engine dt       - bc       40k:  -0.1964 [ -0.4589,  +0.0660] NOT resolved | equals the artifact's at_40k within 1e-9: True | 100k outcome NOT RESOLVED
+mappo1000 att_engine dt       - bc_top10 40k:  +1.7743 [ +1.5227,  +2.0260] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mappo1000 att_engine dt       - iql      40k:  +1.4755 [ +1.2149,  +1.7360] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mappo1000 att_engine bc       - bc_top10 40k:  +1.9708 [ +1.7041,  +2.2375] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mappo1000 att_engine bc       - iql      40k:  +1.6719 [ +1.4449,  +1.8989] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mappo1000 att_engine bc_top10 - iql      40k:  -0.2989 [ -0.5526,  -0.0452] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mappo1000 att_ours   dt       - bc       40k:  -0.2077 [ -0.4690,  +0.0536] NOT resolved | equals the artifact's at_40k within 1e-9: True | 100k outcome NOT RESOLVED
+mappo1000 att_ours   dt       - bc_top10 40k:  +1.7931 [ +1.5423,  +2.0438] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mappo1000 att_ours   dt       - iql      40k:  +1.4794 [ +1.2194,  +1.7393] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mappo1000 att_ours   bc       - bc_top10 40k:  +2.0008 [ +1.7342,  +2.2674] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mappo1000 att_ours   bc       - iql      40k:  +1.6871 [ +1.4593,  +1.9149] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mappo1000 att_ours   bc_top10 - iql      40k:  -0.3137 [ -0.5680,  -0.0594] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mix50     att_engine dt       - bc       40k: -268.2592 [-307.6688, -228.8495] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mix50     att_engine dt       - bc_top10 40k:  +5.5861 [ -0.1369, +11.3090] NOT resolved | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mix50     att_engine dt       - iql      40k: -49.3613 [-70.7542, -27.9684] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mix50     att_engine bc       - bc_top10 40k: +273.8452 [+235.4006, +312.2899] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mix50     att_engine bc       - iql      40k: +218.8979 [+179.1919, +258.6039] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mix50     att_engine bc_top10 - iql      40k: -54.9473 [-75.1406, -34.7540] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mix50     att_ours   dt       - bc       40k: -126.0040 [-144.2831, -107.7248] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mix50     att_ours   dt       - bc_top10 40k:  +3.4673 [ +0.8216,  +6.1130] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mix50     att_ours   dt       - iql      40k: -23.0300 [-33.0693, -12.9908] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mix50     att_ours   bc       - bc_top10 40k: +129.4713 [+111.6643, +147.2782] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mix50     att_ours   bc       - iql      40k: +102.9739 [+84.5375, +121.4104] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD
+mix50     att_ours   bc_top10 - iql      40k: -26.4973 [-35.9807, -17.0139] resolved     | equals the artifact's at_40k within 1e-9: True | 100k outcome HELD

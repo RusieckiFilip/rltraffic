@@ -1,0 +1,253 @@
+# BRIEF_46 Amendment E, E.4-5: the session smoke at 11476c0 on a scratch root with C.4.2's two-step wrapper (script:
+# campaign_ready_e4_session_smoke.py.txt); CPU, one process, OMP/MKL 1
+start 2026-10-28T19:51:32Z  20:51:32 up 1 day,  5:16,  1 user,  load average: 0.44, 1.04, 1.16; HEAD 11476c0
+
+===== session 1, --max-runs 3: corrective_round train --max-runs 3  [20:51:33]
+SESSION: runs #1 (hz1x1:iql_t@random seed 101) to #3 (hz1x1:iql_t@random seed 303): 3 runs, 0.35 planned hours; 255 runs missing in all, 0 done (planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds)
+SESSION PLAN {"count": 3, "done": 0, "first": {"cell": "hz1x1:iql_t@random", "run": 1, "seed": 101}, "hours_bound": null, "last": {"cell": "hz1x1:iql_t@random", "run": 3, "seed": 303}, "max_runs": 3, "missing": 255, "note": "planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds", "planned_hours": 0.34595833333333326, "planned_seconds": 1245.4499999999998, "runs": [{"cell": "hz1x1:iql_t@random", "run": 1, "seed": 101}, {"cell": "hz1x1:iql_t@random", "run": 2, "seed": 202}, {"cell": "hz1x1:iql_t@random", "run": 3, "seed": 303}]}
+TRAIN hz1x1:iql_t@random seed 101 -> /tmp/claude-1000/e4/smoke/output/p9_1_runs/checkpoints/hz1x1/random_iql_t_seed101.pt
+transitions 72000 of 144000
+  done in 0.4s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_t@random seed 202 -> /tmp/claude-1000/e4/smoke/output/p9_1_runs/checkpoints/hz1x1/random_iql_t_seed202.pt
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_t@random seed 303 -> /tmp/claude-1000/e4/smoke/output/p9_1_runs/checkpoints/hz1x1/random_iql_t_seed303.pt
+  done in 0.4s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+SESSION: 3 runs trained in 1.1 s (their records' clock); ended by the plan; 252 runs missing, 40.20 planned hours left
+SESSION SUMMARY {"ended_by": "the plan", "first": {"cell": "hz1x1:iql_t@random", "run": 1, "seconds": 0.40099382400512695, "seed": 101}, "last": {"cell": "hz1x1:iql_t@random", "run": 3, "seconds": 0.4477102756500244, "seed": 303}, "missing_left": 252, "next_missing": {"cell": "hz1x1:iql_t@random", "run": 4, "seed": 404}, "note": "planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds", "planned_hours_left": 40.20376388888889, "seconds_trained": 1.1202802658081055, "trained": [{"cell": "hz1x1:iql_t@random", "run": 1, "seconds": 0.40099382400512695, "seed": 101}, {"cell": "hz1x1:iql_t@random", "run": 2, "seconds": 0.2715761661529541, "seed": 202}, {"cell": "hz1x1:iql_t@random", "run": 3, "seconds": 0.4477102756500244, "seed": 303}]}
+{
+  "skipped_done": 0,
+  "trained": 3
+}
+===== exit 0  [20:51:45]
+done runs: [1, 2, 3]
+
+===== session 2, --max-runs 3, STOP appears in its first run: corrective_round train --max-runs 3  [20:51:45]
+SESSION: runs #4 (hz1x1:iql_t@random seed 404) to #6 (hz1x1:iql_t@fixedtime seed 101): 3 runs, 0.35 planned hours; 252 runs missing in all, 3 done (planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds)
+SESSION PLAN {"count": 3, "done": 3, "first": {"cell": "hz1x1:iql_t@random", "run": 4, "seed": 404}, "hours_bound": null, "last": {"cell": "hz1x1:iql_t@fixedtime", "run": 6, "seed": 101}, "max_runs": 3, "missing": 252, "note": "planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds", "planned_hours": 0.34595833333333326, "planned_seconds": 1245.4499999999998, "runs": [{"cell": "hz1x1:iql_t@random", "run": 4, "seed": 404}, {"cell": "hz1x1:iql_t@random", "run": 5, "seed": 505}, {"cell": "hz1x1:iql_t@fixedtime", "run": 6, "seed": 101}]}
+TRAIN hz1x1:iql_t@random seed 404 -> /tmp/claude-1000/e4/smoke/output/p9_1_runs/checkpoints/hz1x1/random_iql_t_seed404.pt
+transitions 72000 of 144000
+  [the stop file /tmp/claude-1000/e4/smoke/output/p9_1_runs/STOP created during this session's first run]
+  done in 0.4s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+SESSION: /tmp/claude-1000/e4/smoke/output/p9_1_runs/STOP exists -- the session ends here, between runs
+SESSION: 1 runs trained in 0.4 s (their records' clock); ended by the stop file; 251 runs missing, 40.09 planned hours left
+SESSION SUMMARY {"ended_by": "the stop file", "first": {"cell": "hz1x1:iql_t@random", "run": 4, "seconds": 0.35616278648376465, "seed": 404}, "last": {"cell": "hz1x1:iql_t@random", "run": 4, "seconds": 0.35616278648376465, "seed": 404}, "missing_left": 251, "next_missing": {"cell": "hz1x1:iql_t@random", "run": 5, "seed": 505}, "note": "planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds", "planned_hours_left": 40.08844444444444, "seconds_trained": 0.35616278648376465, "trained": [{"cell": "hz1x1:iql_t@random", "run": 4, "seconds": 0.35616278648376465, "seed": 404}]}
+{
+  "skipped_done": 3,
+  "trained": 1
+}
+===== exit 0  [20:51:52]
+done runs: [1, 2, 3, 4] | STOP exists: True
+
+===== a session while STOP exists (refused): corrective_round train --max-runs 1  [20:51:53]
+REFUSED: ValueError: /tmp/claude-1000/e4/smoke/output/p9_1_runs/STOP exists: no session starts while it exists (the author removes it to start one)
+===== exit 2  [20:51:53]
+STOP still exists: True
+[the author removes the stop file]
+
+===== session 3, resumed, --max-runs 3: corrective_round train --max-runs 3  [20:51:53]
+SESSION: runs #5 (hz1x1:iql_t@random seed 505) to #7 (hz1x1:iql_t@fixedtime seed 202): 3 runs, 0.35 planned hours; 251 runs missing in all, 4 done (planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds)
+SESSION PLAN {"count": 3, "done": 4, "first": {"cell": "hz1x1:iql_t@random", "run": 5, "seed": 505}, "hours_bound": null, "last": {"cell": "hz1x1:iql_t@fixedtime", "run": 7, "seed": 202}, "max_runs": 3, "missing": 251, "note": "planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds", "planned_hours": 0.34595833333333326, "planned_seconds": 1245.4499999999998, "runs": [{"cell": "hz1x1:iql_t@random", "run": 5, "seed": 505}, {"cell": "hz1x1:iql_t@fixedtime", "run": 6, "seed": 101}, {"cell": "hz1x1:iql_t@fixedtime", "run": 7, "seed": 202}]}
+TRAIN hz1x1:iql_t@random seed 505 -> /tmp/claude-1000/e4/smoke/output/p9_1_runs/checkpoints/hz1x1/random_iql_t_seed505.pt
+transitions 72000 of 144000
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_t@fixedtime seed 101 -> /tmp/claude-1000/e4/smoke/output/p9_1_runs/checkpoints/hz1x1/fixedtime_iql_t_seed101.pt
+transitions 72000 of 72000
+  done in 0.4s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_t@fixedtime seed 202 -> /tmp/claude-1000/e4/smoke/output/p9_1_runs/checkpoints/hz1x1/fixedtime_iql_t_seed202.pt
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+SESSION: 3 runs trained in 1.0 s (their records' clock); ended by the plan; 248 runs missing, 39.74 planned hours left
+SESSION SUMMARY {"ended_by": "the plan", "first": {"cell": "hz1x1:iql_t@random", "run": 5, "seconds": 0.26048994064331055, "seed": 505}, "last": {"cell": "hz1x1:iql_t@fixedtime", "run": 7, "seconds": 0.2906458377838135, "seed": 202}, "missing_left": 248, "next_missing": {"cell": "hz1x1:iql_t@fixedtime", "run": 8, "seed": 303}, "note": "planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds", "planned_hours_left": 39.74248611111111, "seconds_trained": 0.9757182598114014, "trained": [{"cell": "hz1x1:iql_t@random", "run": 5, "seconds": 0.26048994064331055, "seed": 505}, {"cell": "hz1x1:iql_t@fixedtime", "run": 6, "seconds": 0.42458248138427734, "seed": 101}, {"cell": "hz1x1:iql_t@fixedtime", "run": 7, "seconds": 0.2906458377838135, "seed": 202}]}
+{
+  "skipped_done": 4,
+  "trained": 3
+}
+===== exit 0  [20:52:06]
+done runs: [1, 2, 3, 4, 5, 6, 7]
+
+===== declare the evaluation: corrective_round declare-evaluation  [20:52:06]
+{
+  "eval_ii/grid4x4": 13000,
+  "eval_ii/hz1x1": 13500,
+  "old_cells/hz1x1": 18200
+}
+===== exit 0  [20:52:06]
+
+===== evaluate session 1, deadline in 120 s: corrective_round evaluate --scenario hz1x1 --deadline-unix 1793217246.722  [20:52:06]
+iql_t@random seed 101 over 100 draws
+iql_t@random seed 202 over 100 draws
+iql_t@random seed 303 over 100 draws
+iql_t@random seed 404 over 100 draws
+iql_t@random seed 505 over 100 draws
+  iql_t@random: att_horizon 616.2789 +/- 11.9654  vehicle_count 209.86  n=500
+{
+  "cells_left": [
+    "hz1x1:iql_t@random",
+    "hz1x1:bc@random_fresh",
+    "hz1x1:bc_top10@random_fresh",
+    "hz1x1:behaviour@random_fresh",
+    "hz1x1:dt@random_fresh",
+    "hz1x1:iql@random_fresh",
+    "hz1x1:iql_t@random_fresh"
+  ],
+  "evaluated": [],
+  "stopped_by": "the hours bound",
+  "waiting_for_training": [
+    "hz1x1:iql_t@fixedtime",
+    "hz1x1:bc_100k@mappo1000",
+    "hz1x1:bc_top10_100k@mappo1000",
+    "hz1x1:dt_100k@mappo1000",
+    "hz1x1:iql_100k@mappo1000",
+    "hz1x1:iql_t@mappo1000",
+    "hz1x1:iql_t@mappo500",
+    "hz1x1:iql_t@maxpressure",
+    "hz1x1:iql_t@mix33",
+    "hz1x1:bc_100k@mix50",
+    "hz1x1:bc_top10_100k@mix50",
+    "hz1x1:dt_100k@mix50",
+    "hz1x1:iql_100k@mix50",
+    "hz1x1:iql_t@mix50",
+    "hz1x1:iql_t@mix67",
+    "hz1x1:bc@mix_m1000_m500",
+    "hz1x1:bc_top10@mix_m1000_m500",
+    "hz1x1:dt@mix_m1000_m500",
+    "hz1x1:iql@mix_m1000_m500",
+    "hz1x1:iql_t@mix_m1000_m500"
+  ]
+}
+===== exit 0  [20:59:53]
+status: route (i) cells done 1 | route (ii) hz1x1 {'declared': 13500, 'present': 0, 'missing': 13500} | P3a cells done 0
+
+===== evaluate session 2, deadline in 60 s: corrective_round evaluate --scenario hz1x1 --deadline-unix 1793217654.095  [20:59:54]
+  25/500 rolled=25 skipped=0 refused=0 0.91 s/episode
+  50/500 rolled=50 skipped=0 refused=0 0.91 s/episode
+{
+  "cells_left": [
+    "hz1x1:iql_t@random",
+    "hz1x1:bc@random_fresh",
+    "hz1x1:bc_top10@random_fresh",
+    "hz1x1:behaviour@random_fresh",
+    "hz1x1:dt@random_fresh",
+    "hz1x1:iql@random_fresh",
+    "hz1x1:iql_t@random_fresh"
+  ],
+  "evaluated": [],
+  "stopped_by": "the hours bound",
+  "waiting_for_training": [
+    "hz1x1:iql_t@fixedtime",
+    "hz1x1:bc_100k@mappo1000",
+    "hz1x1:bc_top10_100k@mappo1000",
+    "hz1x1:dt_100k@mappo1000",
+    "hz1x1:iql_100k@mappo1000",
+    "hz1x1:iql_t@mappo1000",
+    "hz1x1:iql_t@mappo500",
+    "hz1x1:iql_t@maxpressure",
+    "hz1x1:iql_t@mix33",
+    "hz1x1:bc_100k@mix50",
+    "hz1x1:bc_top10_100k@mix50",
+    "hz1x1:dt_100k@mix50",
+    "hz1x1:iql_100k@mix50",
+    "hz1x1:iql_t@mix50",
+    "hz1x1:iql_t@mix67",
+    "hz1x1:bc@mix_m1000_m500",
+    "hz1x1:bc_top10@mix_m1000_m500",
+    "hz1x1:dt@mix_m1000_m500",
+    "hz1x1:iql@mix_m1000_m500",
+    "hz1x1:iql_t@mix_m1000_m500"
+  ]
+}
+===== exit 0  [21:00:55]
+status: route (i) cells done 1 | route (ii) hz1x1 {'declared': 13500, 'present': 66, 'missing': 13434} | P3a cells done 0
+
+===== evaluate session 3, deadline in 3 h (to the end): corrective_round evaluate --scenario hz1x1 --deadline-unix 1793228455.490  [21:00:55]
+  91/500 rolled=25 skipped=66 refused=0 0.98 s/episode
+  116/500 rolled=50 skipped=66 refused=0 0.95 s/episode
+  141/500 rolled=75 skipped=66 refused=0 0.94 s/episode
+  166/500 rolled=100 skipped=66 refused=0 0.95 s/episode
+  191/500 rolled=125 skipped=66 refused=0 0.95 s/episode
+  216/500 rolled=150 skipped=66 refused=0 0.95 s/episode
+  241/500 rolled=175 skipped=66 refused=0 0.95 s/episode
+  266/500 rolled=200 skipped=66 refused=0 0.95 s/episode
+  291/500 rolled=225 skipped=66 refused=0 0.95 s/episode
+  316/500 rolled=250 skipped=66 refused=0 0.95 s/episode
+  341/500 rolled=275 skipped=66 refused=0 0.94 s/episode
+  366/500 rolled=300 skipped=66 refused=0 0.94 s/episode
+  391/500 rolled=325 skipped=66 refused=0 0.94 s/episode
+  416/500 rolled=350 skipped=66 refused=0 0.94 s/episode
+  441/500 rolled=375 skipped=66 refused=0 0.94 s/episode
+  466/500 rolled=400 skipped=66 refused=0 0.94 s/episode
+  491/500 rolled=425 skipped=66 refused=0 0.94 s/episode
+  500/500 rolled=434 skipped=66 refused=0 0.94 s/episode
+behaviour@random_fresh seed 101 over 100 draws
+behaviour@random_fresh seed 202 over 100 draws
+behaviour@random_fresh seed 303 over 100 draws
+behaviour@random_fresh seed 404 over 100 draws
+behaviour@random_fresh seed 505 over 100 draws
+  behaviour@random_fresh: att_horizon 419.8535 +/- 1.4426  vehicle_count 154.28  n=500
+  25/500 rolled=25 skipped=0 refused=0 2.41 s/episode
+  50/500 rolled=50 skipped=0 refused=0 2.44 s/episode
+  75/500 rolled=75 skipped=0 refused=0 2.43 s/episode
+  100/500 rolled=100 skipped=0 refused=0 2.43 s/episode
+  125/500 rolled=125 skipped=0 refused=0 2.43 s/episode
+  150/500 rolled=150 skipped=0 refused=0 2.44 s/episode
+  175/500 rolled=175 skipped=0 refused=0 2.44 s/episode
+  200/500 rolled=200 skipped=0 refused=0 2.42 s/episode
+  225/500 rolled=225 skipped=0 refused=0 2.31 s/episode
+  250/500 rolled=250 skipped=0 refused=0 2.22 s/episode
+  275/500 rolled=275 skipped=0 refused=0 2.13 s/episode
+  300/500 rolled=300 skipped=0 refused=0 2.07 s/episode
+  325/500 rolled=325 skipped=0 refused=0 2.01 s/episode
+  350/500 rolled=350 skipped=0 refused=0 1.97 s/episode
+  375/500 rolled=375 skipped=0 refused=0 1.92 s/episode
+  400/500 rolled=400 skipped=0 refused=0 1.89 s/episode
+  425/500 rolled=425 skipped=0 refused=0 1.86 s/episode
+  450/500 rolled=450 skipped=0 refused=0 1.83 s/episode
+  475/500 rolled=475 skipped=0 refused=0 1.80 s/episode
+  500/500 rolled=500 skipped=0 refused=0 1.78 s/episode
+{
+  "cells_left": [],
+  "evaluated": [
+    "hz1x1:iql_t@random",
+    "hz1x1:behaviour@random_fresh"
+  ],
+  "stopped_by": null,
+  "waiting_for_training": [
+    "hz1x1:iql_t@fixedtime",
+    "hz1x1:bc_100k@mappo1000",
+    "hz1x1:bc_top10_100k@mappo1000",
+    "hz1x1:dt_100k@mappo1000",
+    "hz1x1:iql_100k@mappo1000",
+    "hz1x1:iql_t@mappo1000",
+    "hz1x1:iql_t@mappo500",
+    "hz1x1:iql_t@maxpressure",
+    "hz1x1:iql_t@mix33",
+    "hz1x1:bc_100k@mix50",
+    "hz1x1:bc_top10_100k@mix50",
+    "hz1x1:dt_100k@mix50",
+    "hz1x1:iql_100k@mix50",
+    "hz1x1:iql_t@mix50",
+    "hz1x1:iql_t@mix67",
+    "hz1x1:bc@mix_m1000_m500",
+    "hz1x1:bc_top10@mix_m1000_m500",
+    "hz1x1:dt@mix_m1000_m500",
+    "hz1x1:iql@mix_m1000_m500",
+    "hz1x1:iql_t@mix_m1000_m500",
+    "hz1x1:bc@random_fresh",
+    "hz1x1:bc_top10@random_fresh",
+    "hz1x1:dt@random_fresh",
+    "hz1x1:iql@random_fresh",
+    "hz1x1:iql_t@random_fresh"
+  ]
+}
+===== exit 0  [21:39:33]
+status: route (i) cells done 2 | route (ii) hz1x1 {'declared': 13500, 'present': 1000, 'missing': 12500} | P3a cells done 1
+
+===== declare the evaluation again (a later session verifies it unchanged): corrective_round declare-evaluation  [21:39:33]
+{
+  "eval_ii/grid4x4": 13000,
+  "eval_ii/hz1x1": 13500,
+  "old_cells/hz1x1": 18200
+}
+===== exit 0  [21:39:34]
+SMOKE DONE
+smoke exit=0
+end 2026-10-28T20:39:34Z  21:39:34 up 1 day,  6:04,  1 user,  load average: 1.55, 1.56, 1.47

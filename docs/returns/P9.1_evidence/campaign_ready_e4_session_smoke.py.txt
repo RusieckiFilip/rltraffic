@@ -1,0 +1,80 @@
+"""BRIEF_46 Amendment E, E.4-5: the session smoke, on a scratch root with C.4.2's two-step wrapper.
+
+Three substitutions and nothing else: every recipe's steps -> 2 (``offline.a27_arms.recipe`` wrapped, as in C.4.2);
+the output root -> a scratch directory; ``AGGREGATE_PREFIXES`` -> ``{2: "p9_1"}`` (route (i)'s hz1x1 training aggregate is
+keyed by the budget, which the wrapper sets to 2).  The CLI is ``corrective_round.main`` in this process (the driver's
+MAIN cannot point at a scratch root; Q16).  The author's stop file is created DURING the second session's first run, by
+a wrapper around that run's innermost trainer, which then trains as registered (a deterministic stand-in for a touch).
+
+Usage: python -P session_smoke.py REPO SCRATCH
+"""
+import dataclasses
+import json
+import sys
+import time
+from pathlib import Path
+
+repo, scratch = Path(sys.argv[1]), Path(sys.argv[2])
+sys.path.insert(0, str(repo))
+import offline.a27_arms as a27  # noqa: E402
+
+registered = a27.recipe
+a27.recipe = lambda scenario, arm: dataclasses.replace(registered(scenario, arm), steps=2)
+import offline.corrective_round as cr  # noqa: E402
+import offline.method_tier_grid as grid  # noqa: E402
+
+cr.AGGREGATE_PREFIXES = {2: "p9_1"}
+MAIN = Path("/home/filip/rltraffic")
+output = scratch / "output"
+output.mkdir(parents=True)
+base = ["--repo-root", str(repo), "--output-root", str(output), "--corpus-root", str(MAIN / "datasets_v11"),
+        "--draws-root", str(MAIN / "scenarios" / "draws")]
+roots = cr.Roots(repo_root=repo, output_root=output, corpus_root=MAIN / "datasets_v11", draws_root=MAIN / "scenarios/draws")
+RUNS = cr.training_runs()
+
+
+def step(title: str, argv: list[str]) -> int:
+    print(f"\n===== {title}: corrective_round {' '.join(argv)}  [{time.strftime('%H:%M:%S')}]", flush=True)
+    code = cr.main([*base, *argv])
+    print(f"===== exit {code}  [{time.strftime('%H:%M:%S')}]", flush=True)
+    return code
+
+
+def done() -> list[int]:
+    return [i for i, (cell, seed) in enumerate(RUNS, start=1) if i <= 12 and cr.run_status(roots, cell, seed) == "done"]
+
+
+assert step("session 1, --max-runs 3", ["train", "--max-runs", "3"]) == 0
+print("done runs:", done())
+real, calls = grid.train_iql, []
+
+
+def trainer(*args, **kwargs):  # session 2: the author's stop file appears during its first run
+    calls.append(kwargs.get("seed"))
+    if len(calls) == 1:
+        cr.stop_file(roots).touch()
+        print(f"  [the stop file {cr.stop_file(roots)} created during this session's first run]", flush=True)
+    return real(*args, **kwargs)
+
+
+grid.train_iql = trainer
+assert step("session 2, --max-runs 3, STOP appears in its first run", ["train", "--max-runs", "3"]) == 0
+grid.train_iql = real
+print("done runs:", done(), "| STOP exists:", cr.stop_file(roots).exists())
+assert step("a session while STOP exists (refused)", ["train", "--max-runs", "1"]) == 2
+print("STOP still exists:", cr.stop_file(roots).exists())
+cr.stop_file(roots).unlink()
+print("[the author removes the stop file]")
+assert step("session 3, resumed, --max-runs 3", ["train", "--max-runs", "3"]) == 0
+print("done runs:", done())
+
+assert step("declare the evaluation", ["declare-evaluation"]) == 0
+for title, seconds in (("evaluate session 1, deadline in 120 s", 120), ("evaluate session 2, deadline in 60 s", 60),
+                       ("evaluate session 3, deadline in 3 h (to the end)", 3 * 3600)):
+    assert step(title, ["evaluate", "--scenario", "hz1x1", "--deadline-unix", f"{time.time() + seconds:.3f}"]) == 0
+    status = cr.status(roots)
+    print("status: route (i) cells done", status["evaluation"]["route_i_cells_done"], "| route (ii) hz1x1",
+          {k: status["evaluation"]["route_ii"]["hz1x1"].get(k) for k in ("declared", "present", "missing")},
+          "| P3a cells done", status["evaluation"]["p3a_cells_done"], flush=True)
+assert step("declare the evaluation again (a later session verifies it unchanged)", ["declare-evaluation"]) == 0
+print("SMOKE DONE", flush=True)

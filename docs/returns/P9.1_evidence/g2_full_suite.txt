@@ -1,0 +1,33 @@
+# G2 whole suite, as CI runs it: sandboxed (no GPU, no tmux socket), no corpus or output variables, its own --basetemp, alone, HEAD held still
+$ OMP_NUM_THREADS=1 pytest -q -p no:cacheprovider -rf --basetemp=<scratch>/bt_ci2
+FAILED tests/test_p7_3c_campaign.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_p7_3c_corpus_driver.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_p7_3d_campaign_path.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_p7_3d_campaign_path.py::test_a_not_identical_reroll_refuses_the_token
+FAILED tests/test_p7_3d_campaign_path.py::test_a_reference_reroll_without_six_match_lines_refuses_the_token[one_no_match_exit_2]
+FAILED tests/test_p7_3d_campaign_path.py::test_a_reference_reroll_without_six_match_lines_refuses_the_token[six_match_lines_exit_2]
+FAILED tests/test_p7_3d_campaign_path.py::test_a_reference_reroll_without_six_match_lines_refuses_the_token[five_match_lines_exit_0]
+FAILED tests/test_p7_3d_campaign_path.py::test_an_unresolvable_chunk_commit_refuses_before_the_token
+FAILED tests/test_p7_3d_campaign_path.py::test_report_writes_the_grid4x4_artifact_through_the_driver_from_a_complete_synthetic_set
+FAILED tests/test_tier_statements.py::test_t_quotes_every_rule_quotation_appears_at_its_cited_lines
+10 failed, 3633 passed, 242 skipped, 29 warnings in 912.51s (0:15:12)
+HEAD at start ce25ca3713dbc9e52fe1d7c3f4113d54e0493a30 at end ce25ca3713dbc9e52fe1d7c3f4113d54e0493a30
+
+# classification of the 10
+## 6 P7.3d driver tests: the P7.3d driver's RAM guard refused ('REFUSING TO START: 22159 MiB available, below the 24216 MiB budget'). /tmp is a 24 GB tmpfs that was 86 % full -- 5.7 GB of it this session's scratch (two suites' basetemps, an old one, two detached trees); those basetemps were deleted (MemAvailable 23,325,804 kB -> 28,590,184 kB) and the six re-run:
+......                                                                   [100%]
+6 passed in 52.34s
+## 3 tmux header tests, re-run OUTSIDE the sandbox (the tmux socket):
+3 passed in 32.23s
+## 1 tests/test_tier_statements.py::test_t_quotes_every_rule_quotation_appears_at_its_cited_lines: red on main at aaad51b (M1's Q3; m1_full_suite.txt)
+
+# EARLIER full runs in this session, NOT clean evidence (each disclosed in the packet):
+## an accidental -x run (env vars set, one test deselected), overlapping the next one:
+1 failed, 2041 passed, 29 skipped, 1 deselected, 10 warnings in 393.47s (0:06:33)
+## env-enabled, overlapped by the -x run until 10:44, commits made during it:
+56 failed, 3706 passed, 96 skipped, 29 warnings in 859.48s (0:14:19)
+## env-enabled, alone, commits made during it (8002c70, e19ab2a, 766b768):
+52 failed, 3729 passed, 102 skipped, 29 warnings in 888.19s (0:14:48)
+## CI mode, ce25ca3 committed two minutes in:
+40 failed, 3603 passed, 242 skipped, 29 warnings in 907.53s (0:15:07)
+## env-enabled on MAIN's checkout (aaad51b): no output after 11:33:55 at 93 %, killed by its 3000-s timeout -- inconclusive

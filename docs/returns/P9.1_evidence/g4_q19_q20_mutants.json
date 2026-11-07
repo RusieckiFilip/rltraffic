@@ -1,0 +1,128 @@
+[
+ {
+  "name": "F1 the family is iql_t alone (Q18's set)",
+  "file": "offline/corrective_report.py",
+  "old": "        if recipe[\"base\"] != IQL_FAMILY_BASE:\n",
+  "new": "        if cell.arm != \"iql_t\":\n",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "F2 the target mode not compared with the recipe's",
+  "file": "offline/corrective_report.py",
+  "old": "        if mode != recipe[\"target_dropout\"]:\n",
+  "new": "        if False:\n",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "F3 a block without its target mode accepted",
+  "file": "offline/corrective_report.py",
+  "old": "        if \"target_dropout\" not in diagnostics:\n",
+  "new": "        if False:\n",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "F4 = C3: the identity check without the tier",
+  "file": "offline/corrective_report.py",
+  "old": "(\"format_version\", \"scenario\", \"tier\", \"arm\", \"seed\"))\n        if identity != (cr.RUN_RECORD_FORMAT_VERSION, cell.scenario, cell.tier, cell.arm, int(seed)):",
+  "new": "(\"format_version\", \"scenario\", \"arm\", \"seed\"))\n        if identity != (cr.RUN_RECORD_FORMAT_VERSION, cell.scenario, cell.arm, int(seed)):",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "F5 = C4: only NaN refused, an infinite value accepted",
+  "file": "offline/corrective_report.py",
+  "old": "or not math.isfinite(value):",
+  "new": "or math.isnan(value):",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "F6 the traffic part keeps Q18's key",
+  "file": "offline/corrective_report.py",
+  "old": "            \"traffic_iql_family\": {\n",
+  "new": "            \"traffic_iql_t\": {\n",
+  "tests": [
+   "tests/test_corrective_report_diagnostics.py"
+  ]
+ },
+ {
+  "name": "V1 (S.2) evaluate sessions naming two commits accepted",
+  "file": "offline/corrective_report.py",
+  "old": "    if len(commits) != 1 or len(trees) != 1:\n",
+  "new": "    if len(trees) != 1:\n",
+  "tests": [
+   "tests/test_corrective_report_sessions.py"
+  ]
+ },
+ {
+  "name": "V2 evaluate sessions naming two run trees accepted",
+  "file": "offline/corrective_report.py",
+  "old": "    if len(commits) != 1 or len(trees) != 1:\n",
+  "new": "    if len(commits) != 1:\n",
+  "tests": [
+   "tests/test_corrective_report_sessions.py"
+  ]
+ },
+ {
+  "name": "V3 (S.2) the evaluation's commit taken from a route (i) runtime field",
+  "file": "offline/corrective_report.py",
+  "old": "                   evaluation_code_commit=stage_code_commit(sessions, \"evaluate\"),\n",
+  "new": "                   evaluation_code_commit={**stage_code_commit(sessions, \"evaluate\"), \"code_commit\": json.loads(cr.route_i_output(roots, next(c for c in cr.evaluation_cells() if c.scenario == \"hz1x1\")).read_text(encoding=\"utf-8\")).get(\"runtime\", {}).get(\"git_commit\")},\n",
+  "tests": [
+   "tests/test_corrective_report_fixture_tree.py"
+  ]
+ },
+ {
+  "name": "V4 a stage without a session accepted",
+  "file": "offline/corrective_report.py",
+  "old": "    if not chosen:\n        raise ValueError(f\"no {stage} session in the captures\")\n",
+  "new": "    if False:\n        raise ValueError(f\"no {stage} session in the captures\")\n",
+  "tests": [
+   "tests/test_corrective_report_sessions.py"
+  ]
+ },
+ {
+  "name": "V5 the D4RL session not named beside its section",
+  "file": "offline/corrective_report.py",
+  "old": "        \"d4rl_session\": src.d4rl_session,\n",
+  "new": "",
+  "tests": [
+   "tests/test_corrective_report_fixture_tree.py"
+  ]
+ },
+ {
+  "name": "V6 the artifacts carry no sessions",
+  "file": "offline/corrective_report.py",
+  "old": "\"sessions\": [dict(session) for session in src.sessions],",
+  "new": "\"sessions\": [],",
+  "tests": [
+   "tests/test_corrective_report_fixture_tree.py"
+  ]
+ },
+ {
+  "name": "V7 the evaluation's commit read from the training sessions",
+  "file": "offline/corrective_report.py",
+  "old": "                   evaluation_code_commit=stage_code_commit(sessions, \"evaluate\"),\n",
+  "new": "                   evaluation_code_commit=stage_code_commit(sessions, \"train\"),\n",
+  "tests": [
+   "tests/test_corrective_report_fixture_tree.py"
+  ]
+ },
+ {
+  "name": "V8 the D4RL session read from the campaign stage's",
+  "file": "offline/corrective_report.py",
+  "old": "                   d4rl_session=stage_code_commit(sessions, \"d4rl\"))",
+  "new": "                   d4rl_session=stage_code_commit(sessions, \"campaign\"))",
+  "tests": [
+   "tests/test_corrective_report_fixture_tree.py"
+  ]
+ }
+]

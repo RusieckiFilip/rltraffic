@@ -1,0 +1,9 @@
+# gpu_overlap (BRIEF_46 Amendment D, D.2-2): red on the signature-only skeleton (3 failed, NotImplementedError), green 3 passed;
+# mutants against a control (runner: PYTHONDONTWRITEBYTECODE=1, files restored and sha256-checked)
+control (unmutated, 1 test targets): exit 0; 3 passed in 0.82s
+mutant                                                    result    evidence
+O-1 the whole run counted, not its overlap                KILLED    FAILED tests/test_corrective_report_overlap.py::test_every_run_overlapping_the_window_is_listed_with_its_overlap_and_no_other
+O-2 a run touching the window at one instant counted      KILLED    FAILED tests/test_corrective_report_overlap.py::test_a_window_touching_no_run_lists_none_and_an_empty_or_reversed_window_is_refused
+O-3 a missing reading counted as zero                     KILLED    FAILED tests/test_corrective_report_overlap.py::test_every_run_overlapping_the_window_is_listed_with_its_overlap_and_no_other
+O-4 a line whose time is not a number skipped, not refusedKILLED    FAILED tests/test_corrective_report_overlap.py::test_a_trace_line_that_is_not_a_reading_is_refused
+every file restored, sha256 equal to the original

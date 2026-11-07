@@ -1,0 +1,845 @@
+start 2026-10-27T22:51:42Z  23:51:42 up 22:23,  1 user,  load average: 0.06, 0.13, 0.11; HEAD cb61ee7
+smoke: 51 cells, seed 101, device cpu, output root /tmp/claude-1000/p91_c4/smoke_out
+TRAIN hz1x1:iql_t@random seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/random_iql_t_seed101.pt
+transitions 72000 of 144000
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_t@fixedtime seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/fixedtime_iql_t_seed101.pt
+transitions 72000 of 72000
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_t@maxpressure seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/maxpressure_iql_t_seed101.pt
+transitions 72000 of 72000
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_t@mappo500 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mappo500_iql_t_seed101.pt
+transitions 72000 of 72000
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_t@mappo1000 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mappo1000_iql_t_seed101.pt
+transitions 72000 of 72000
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_t@mix33 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mix33_iql_t_seed101.pt
+transitions 72000 of 216000
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_t@mix50 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mix50_iql_t_seed101.pt
+transitions 72000 of 216000
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_t@mix67 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mix67_iql_t_seed101.pt
+transitions 72000 of 216000
+  done in 0.4s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:dt@random_fresh seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/random_fresh_dt_seed101.pt
+  done in 0.5s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:bc@random_fresh seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/random_fresh_bc_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:bc_top10@random_fresh seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/random_fresh_bc_top10_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql@random_fresh seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/random_fresh_iql_seed101.pt
+transitions 72000 of 72000
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_t@random_fresh seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/random_fresh_iql_t_seed101.pt
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:dt@mix_m1000_m500 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mix_m1000_m500_dt_seed101.pt
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:bc@mix_m1000_m500 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mix_m1000_m500_bc_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:bc_top10@mix_m1000_m500 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mix_m1000_m500_bc_top10_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql@mix_m1000_m500 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mix_m1000_m500_iql_seed101.pt
+transitions 72000 of 144000
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_t@mix_m1000_m500 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mix_m1000_m500_iql_t_seed101.pt
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:dt_100k@mappo1000 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mappo1000_dt_100k_seed101.pt
+  done in 0.6s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:bc_100k@mappo1000 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mappo1000_bc_100k_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:bc_top10_100k@mappo1000 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mappo1000_bc_top10_100k_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_100k@mappo1000 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mappo1000_iql_100k_seed101.pt
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:dt_100k@mix50 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mix50_dt_100k_seed101.pt
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:bc_100k@mix50 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mix50_bc_100k_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:bc_top10_100k@mix50 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mix50_bc_top10_100k_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:iql_100k@mix50 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/hz1x1/mix50_iql_100k_seed101.pt
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_m@mappo1000 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_mappo1000_bc_m_seed101.pt
+  done in 1.0s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_top10_m@mappo1000 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_mappo1000_bc_top10_m_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_top10_perix_m@mappo1000 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_mappo1000_bc_top10_perix_m_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:iql_m@mappo1000 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_mappo1000_iql_m_seed101.pt
+  transitions 1152000
+  done in 4.5s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_m@maxpressure seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_maxpressure_bc_m_seed101.pt
+  done in 1.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_top10_m@maxpressure seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_maxpressure_bc_top10_m_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_top10_perix_m@maxpressure seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_maxpressure_bc_top10_perix_m_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:iql_m@maxpressure seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_maxpressure_iql_m_seed101.pt
+  transitions 1152000
+  done in 4.4s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_m@fixedtime seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_fixedtime_bc_m_seed101.pt
+  done in 1.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_top10_m@fixedtime seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_fixedtime_bc_top10_m_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_top10_perix_m@fixedtime seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_fixedtime_bc_top10_perix_m_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:iql_m@fixedtime seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_fixedtime_iql_m_seed101.pt
+  transitions 1152000
+  done in 4.4s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_m@random seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_random_bc_m_seed101.pt
+  done in 1.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_top10_m@random seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_random_bc_top10_m_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_top10_perix_m@random seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_random_bc_top10_perix_m_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:iql_m@random seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_random_iql_m_seed101.pt
+  transitions 1152000
+  done in 4.2s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:iql_t@mappo1000 seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_mappo1000_iql_t_seed101.pt
+  done in 1.6s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:iql_t@maxpressure seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_maxpressure_iql_t_seed101.pt
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:iql_t@fixedtime seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_fixedtime_iql_t_seed101.pt
+  done in 0.5s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:iql_t@random seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_random_iql_t_seed101.pt
+  done in 0.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:dt_nomix@random_fresh seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_random_fresh_dt_nomix_seed101.pt
+  done in 7.6s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_m@random_fresh seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_random_fresh_bc_m_seed101.pt
+  done in 1.0s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_top10_m@random_fresh seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_random_fresh_bc_top10_m_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:bc_top10_perix_m@random_fresh seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_random_fresh_bc_top10_perix_m_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:iql_m@random_fresh seed 101 -> /tmp/claude-1000/p91_c4/smoke_out/p9_1_runs/checkpoints/grid4x4/grid4x4_random_fresh_iql_m_seed101.pt
+  transitions 1152000
+  done in 4.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+{
+ "outcome": {
+  "trained": 51,
+  "skipped_done": 0
+ },
+ "wall_seconds": 588.1211531162262,
+ "completed": 51,
+ "records": [
+  {
+   "n": 1,
+   "scenario": "hz1x1",
+   "tier": "random",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.31179380416870117,
+   "started_unix": 1793141508.3699882,
+   "finished_unix": 1793141510.6523502,
+   "final_loss": 9.757777214050293,
+   "status": "done"
+  },
+  {
+   "n": 2,
+   "scenario": "hz1x1",
+   "tier": "fixedtime",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.2727515697479248,
+   "started_unix": 1793141513.0875294,
+   "finished_unix": 1793141514.3742716,
+   "final_loss": 16.560970306396484,
+   "status": "done"
+  },
+  {
+   "n": 3,
+   "scenario": "hz1x1",
+   "tier": "maxpressure",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.2754530906677246,
+   "started_unix": 1793141516.9384184,
+   "finished_unix": 1793141518.2907135,
+   "final_loss": 22.55681610107422,
+   "status": "done"
+  },
+  {
+   "n": 4,
+   "scenario": "hz1x1",
+   "tier": "mappo500",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.2682492733001709,
+   "started_unix": 1793141520.914037,
+   "finished_unix": 1793141522.2330146,
+   "final_loss": 14.069597244262695,
+   "status": "done"
+  },
+  {
+   "n": 5,
+   "scenario": "hz1x1",
+   "tier": "mappo1000",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.29734110832214355,
+   "started_unix": 1793141524.8054109,
+   "finished_unix": 1793141526.101126,
+   "final_loss": 15.626925468444824,
+   "status": "done"
+  },
+  {
+   "n": 6,
+   "scenario": "hz1x1",
+   "tier": "mix33",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.2879045009613037,
+   "started_unix": 1793141535.137745,
+   "finished_unix": 1793141537.6331196,
+   "final_loss": 9.044742584228516,
+   "status": "done"
+  },
+  {
+   "n": 7,
+   "scenario": "hz1x1",
+   "tier": "mix50",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.27298665046691895,
+   "started_unix": 1793141548.2262924,
+   "finished_unix": 1793141550.72272,
+   "final_loss": 9.535418510437012,
+   "status": "done"
+  },
+  {
+   "n": 8,
+   "scenario": "hz1x1",
+   "tier": "mix67",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.3594167232513428,
+   "started_unix": 1793141560.342617,
+   "finished_unix": 1793141563.0101624,
+   "final_loss": 10.59197998046875,
+   "status": "done"
+  },
+  {
+   "n": 9,
+   "scenario": "hz1x1",
+   "tier": "random_fresh",
+   "arm": "dt",
+   "base": "dt",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.473768949508667,
+   "started_unix": 1793141566.5217557,
+   "finished_unix": 1793141567.0095515,
+   "final_loss": 2.168909788131714,
+   "status": "done"
+  },
+  {
+   "n": 10,
+   "scenario": "hz1x1",
+   "tier": "random_fresh",
+   "arm": "bc",
+   "base": "bc",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.11414313316345215,
+   "started_unix": 1793141567.0150325,
+   "finished_unix": 1793141573.3148777,
+   "final_loss": 2.1974456310272217,
+   "status": "done"
+  },
+  {
+   "n": 11,
+   "scenario": "hz1x1",
+   "tier": "random_fresh",
+   "arm": "bc_top10",
+   "base": "bc_top10",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.08704996109008789,
+   "started_unix": 1793141573.3186038,
+   "finished_unix": 1793141575.1876986,
+   "final_loss": 2.163515329360962,
+   "status": "done"
+  },
+  {
+   "n": 12,
+   "scenario": "hz1x1",
+   "tier": "random_fresh",
+   "arm": "iql",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.2505674362182617,
+   "started_unix": 1793141575.1902962,
+   "finished_unix": 1793141576.5586038,
+   "final_loss": 11.51472282409668,
+   "status": "done"
+  },
+  {
+   "n": 13,
+   "scenario": "hz1x1",
+   "tier": "random_fresh",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.2835228443145752,
+   "started_unix": 1793141576.5676503,
+   "finished_unix": 1793141577.4729118,
+   "final_loss": 11.473389625549316,
+   "status": "done"
+  },
+  {
+   "n": 14,
+   "scenario": "hz1x1",
+   "tier": "mix_m1000_m500",
+   "arm": "dt",
+   "base": "dt",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.34456872940063477,
+   "started_unix": 1793141584.1197653,
+   "finished_unix": 1793141584.483849,
+   "final_loss": 2.081462860107422,
+   "status": "done"
+  },
+  {
+   "n": 15,
+   "scenario": "hz1x1",
+   "tier": "mix_m1000_m500",
+   "arm": "bc",
+   "base": "bc",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.06676030158996582,
+   "started_unix": 1793141584.4878454,
+   "finished_unix": 1793141591.0133157,
+   "final_loss": 2.005180835723877,
+   "status": "done"
+  },
+  {
+   "n": 16,
+   "scenario": "hz1x1",
+   "tier": "mix_m1000_m500",
+   "arm": "bc_top10",
+   "base": "bc_top10",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.06738734245300293,
+   "started_unix": 1793141591.0165594,
+   "finished_unix": 1793141592.843516,
+   "final_loss": 2.031363010406494,
+   "status": "done"
+  },
+  {
+   "n": 17,
+   "scenario": "hz1x1",
+   "tier": "mix_m1000_m500",
+   "arm": "iql",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.259427547454834,
+   "started_unix": 1793141592.8461287,
+   "finished_unix": 1793141594.6234555,
+   "final_loss": 14.619389533996582,
+   "status": "done"
+  },
+  {
+   "n": 18,
+   "scenario": "hz1x1",
+   "tier": "mix_m1000_m500",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.2787284851074219,
+   "started_unix": 1793141594.6328466,
+   "finished_unix": 1793141595.7844849,
+   "final_loss": 13.931726455688477,
+   "status": "done"
+  },
+  {
+   "n": 19,
+   "scenario": "hz1x1",
+   "tier": "mappo1000",
+   "arm": "dt_100k",
+   "base": "dt",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.619877815246582,
+   "started_unix": 1793141595.798186,
+   "finished_unix": 1793141596.4426115,
+   "final_loss": 2.0649092197418213,
+   "status": "done"
+  },
+  {
+   "n": 20,
+   "scenario": "hz1x1",
+   "tier": "mappo1000",
+   "arm": "bc_100k",
+   "base": "bc",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.12284111976623535,
+   "started_unix": 1793141596.4497206,
+   "finished_unix": 1793141603.7527869,
+   "final_loss": 2.027350425720215,
+   "status": "done"
+  },
+  {
+   "n": 21,
+   "scenario": "hz1x1",
+   "tier": "mappo1000",
+   "arm": "bc_top10_100k",
+   "base": "bc_top10",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.06951713562011719,
+   "started_unix": 1793141603.7556002,
+   "finished_unix": 1793141605.6009233,
+   "final_loss": 2.00954532623291,
+   "status": "done"
+  },
+  {
+   "n": 22,
+   "scenario": "hz1x1",
+   "tier": "mappo1000",
+   "arm": "iql_100k",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.25044703483581543,
+   "started_unix": 1793141605.603818,
+   "finished_unix": 1793141606.3855143,
+   "final_loss": 15.38116455078125,
+   "status": "done"
+  },
+  {
+   "n": 23,
+   "scenario": "hz1x1",
+   "tier": "mix50",
+   "arm": "dt_100k",
+   "base": "dt",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.3402407169342041,
+   "started_unix": 1793141606.392822,
+   "finished_unix": 1793141606.7442837,
+   "final_loss": 2.224730968475342,
+   "status": "done"
+  },
+  {
+   "n": 24,
+   "scenario": "hz1x1",
+   "tier": "mix50",
+   "arm": "bc_100k",
+   "base": "bc",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.07015800476074219,
+   "started_unix": 1793141606.748109,
+   "finished_unix": 1793141614.1635678,
+   "final_loss": 2.0988917350769043,
+   "status": "done"
+  },
+  {
+   "n": 25,
+   "scenario": "hz1x1",
+   "tier": "mix50",
+   "arm": "bc_top10_100k",
+   "base": "bc_top10",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.06941008567810059,
+   "started_unix": 1793141614.1662698,
+   "finished_unix": 1793141615.958512,
+   "final_loss": 2.028022289276123,
+   "status": "done"
+  },
+  {
+   "n": 26,
+   "scenario": "hz1x1",
+   "tier": "mix50",
+   "arm": "iql_100k",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.25152111053466797,
+   "started_unix": 1793141615.9613047,
+   "finished_unix": 1793141616.7362447,
+   "final_loss": 9.841273307800293,
+   "status": "done"
+  },
+  {
+   "n": 27,
+   "scenario": "grid4x4",
+   "tier": "mappo1000",
+   "arm": "bc_m",
+   "base": "bc",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 1.022204875946045,
+   "started_unix": 1793141665.68902,
+   "finished_unix": 1793141671.0974858,
+   "final_loss": 2.1464297771453857,
+   "status": "done"
+  },
+  {
+   "n": 28,
+   "scenario": "grid4x4",
+   "tier": "mappo1000",
+   "arm": "bc_top10_m",
+   "base": "bc_top10",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.13681650161743164,
+   "started_unix": 1793141671.100278,
+   "finished_unix": 1793141675.9083111,
+   "final_loss": 2.1265907287597656,
+   "status": "done"
+  },
+  {
+   "n": 29,
+   "scenario": "grid4x4",
+   "tier": "mappo1000",
+   "arm": "bc_top10_perix_m",
+   "base": "bc_top10_perix",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.1110846996307373,
+   "started_unix": 1793141675.9112027,
+   "finished_unix": 1793141680.5504696,
+   "final_loss": 2.1632871627807617,
+   "status": "done"
+  },
+  {
+   "n": 30,
+   "scenario": "grid4x4",
+   "tier": "mappo1000",
+   "arm": "iql_m",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 4.46273136138916,
+   "started_unix": 1793141680.553316,
+   "finished_unix": 1793141688.3152854,
+   "final_loss": 19.519445419311523,
+   "status": "done"
+  },
+  {
+   "n": 31,
+   "scenario": "grid4x4",
+   "tier": "maxpressure",
+   "arm": "bc_m",
+   "base": "bc",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 1.1458375453948975,
+   "started_unix": 1793141736.7954023,
+   "finished_unix": 1793141742.4702334,
+   "final_loss": 2.157608985900879,
+   "status": "done"
+  },
+  {
+   "n": 32,
+   "scenario": "grid4x4",
+   "tier": "maxpressure",
+   "arm": "bc_top10_m",
+   "base": "bc_top10",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.1252601146697998,
+   "started_unix": 1793141742.4734914,
+   "finished_unix": 1793141747.0427668,
+   "final_loss": 2.1263647079467773,
+   "status": "done"
+  },
+  {
+   "n": 33,
+   "scenario": "grid4x4",
+   "tier": "maxpressure",
+   "arm": "bc_top10_perix_m",
+   "base": "bc_top10_perix",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.11008191108703613,
+   "started_unix": 1793141747.0457852,
+   "finished_unix": 1793141751.7035964,
+   "final_loss": 2.163008689880371,
+   "status": "done"
+  },
+  {
+   "n": 34,
+   "scenario": "grid4x4",
+   "tier": "maxpressure",
+   "arm": "iql_m",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 4.384077310562134,
+   "started_unix": 1793141751.7066052,
+   "finished_unix": 1793141759.4513953,
+   "final_loss": 16.336214065551758,
+   "status": "done"
+  },
+  {
+   "n": 35,
+   "scenario": "grid4x4",
+   "tier": "fixedtime",
+   "arm": "bc_m",
+   "base": "bc",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 1.133979320526123,
+   "started_unix": 1793141815.5845318,
+   "finished_unix": 1793141821.3939953,
+   "final_loss": 2.1179263591766357,
+   "status": "done"
+  },
+  {
+   "n": 36,
+   "scenario": "grid4x4",
+   "tier": "fixedtime",
+   "arm": "bc_top10_m",
+   "base": "bc_top10",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.11441540718078613,
+   "started_unix": 1793141821.3970947,
+   "finished_unix": 1793141825.851552,
+   "final_loss": 2.0962774753570557,
+   "status": "done"
+  },
+  {
+   "n": 37,
+   "scenario": "grid4x4",
+   "tier": "fixedtime",
+   "arm": "bc_top10_perix_m",
+   "base": "bc_top10_perix",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.11056733131408691,
+   "started_unix": 1793141825.8545697,
+   "finished_unix": 1793141830.369169,
+   "final_loss": 2.1133244037628174,
+   "status": "done"
+  },
+  {
+   "n": 38,
+   "scenario": "grid4x4",
+   "tier": "fixedtime",
+   "arm": "iql_m",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 4.3859124183654785,
+   "started_unix": 1793141830.3721123,
+   "finished_unix": 1793141838.3217535,
+   "final_loss": 29.598413467407227,
+   "status": "done"
+  },
+  {
+   "n": 39,
+   "scenario": "grid4x4",
+   "tier": "random",
+   "arm": "bc_m",
+   "base": "bc",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 1.074465036392212,
+   "started_unix": 1793141954.2569509,
+   "finished_unix": 1793141958.7096567,
+   "final_loss": 2.176882266998291,
+   "status": "done"
+  },
+  {
+   "n": 40,
+   "scenario": "grid4x4",
+   "tier": "random",
+   "arm": "bc_top10_m",
+   "base": "bc_top10",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.11339497566223145,
+   "started_unix": 1793141958.7142897,
+   "finished_unix": 1793141962.3106937,
+   "final_loss": 2.1947617530822754,
+   "status": "done"
+  },
+  {
+   "n": 41,
+   "scenario": "grid4x4",
+   "tier": "random",
+   "arm": "bc_top10_perix_m",
+   "base": "bc_top10_perix",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.10728144645690918,
+   "started_unix": 1793141962.3158476,
+   "finished_unix": 1793141965.7449539,
+   "final_loss": 2.1692399978637695,
+   "status": "done"
+  },
+  {
+   "n": 42,
+   "scenario": "grid4x4",
+   "tier": "random",
+   "arm": "iql_m",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 4.203259706497192,
+   "started_unix": 1793141965.7478256,
+   "finished_unix": 1793141975.8680365,
+   "final_loss": 20.026626586914062,
+   "status": "done"
+  },
+  {
+   "n": 43,
+   "scenario": "grid4x4",
+   "tier": "mappo1000",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 1.5759470462799072,
+   "started_unix": 1793141975.9107566,
+   "finished_unix": 1793141980.5630608,
+   "final_loss": 19.229164123535156,
+   "status": "done"
+  },
+  {
+   "n": 44,
+   "scenario": "grid4x4",
+   "tier": "maxpressure",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.264575719833374,
+   "started_unix": 1793141980.5718307,
+   "finished_unix": 1793141981.5323231,
+   "final_loss": 17.191999435424805,
+   "status": "done"
+  },
+  {
+   "n": 45,
+   "scenario": "grid4x4",
+   "tier": "fixedtime",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.48752784729003906,
+   "started_unix": 1793141981.547256,
+   "finished_unix": 1793141982.697014,
+   "final_loss": 30.01767349243164,
+   "status": "done"
+  },
+  {
+   "n": 46,
+   "scenario": "grid4x4",
+   "tier": "random",
+   "arm": "iql_t",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.2719588279724121,
+   "started_unix": 1793141982.7056787,
+   "finished_unix": 1793141983.4982822,
+   "final_loss": 20.136802673339844,
+   "status": "done"
+  },
+  {
+   "n": 47,
+   "scenario": "grid4x4",
+   "tier": "random_fresh",
+   "arm": "dt_nomix",
+   "base": "dt_nomix",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 7.603997707366943,
+   "started_unix": 1793141988.9546323,
+   "finished_unix": 1793142022.9685411,
+   "final_loss": 2.2043657302856445,
+   "status": "done"
+  },
+  {
+   "n": 48,
+   "scenario": "grid4x4",
+   "tier": "random_fresh",
+   "arm": "bc_m",
+   "base": "bc",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 1.041529893875122,
+   "started_unix": 1793142067.1953607,
+   "finished_unix": 1793142071.695457,
+   "final_loss": 2.1772663593292236,
+   "status": "done"
+  },
+  {
+   "n": 49,
+   "scenario": "grid4x4",
+   "tier": "random_fresh",
+   "arm": "bc_top10_m",
+   "base": "bc_top10",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.10709333419799805,
+   "started_unix": 1793142071.6982772,
+   "finished_unix": 1793142075.0953815,
+   "final_loss": 2.1917662620544434,
+   "status": "done"
+  },
+  {
+   "n": 50,
+   "scenario": "grid4x4",
+   "tier": "random_fresh",
+   "arm": "bc_top10_perix_m",
+   "base": "bc_top10_perix",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 0.10518431663513184,
+   "started_unix": 1793142075.0986784,
+   "finished_unix": 1793142078.5261986,
+   "final_loss": 2.1906938552856445,
+   "status": "done"
+  },
+  {
+   "n": 51,
+   "scenario": "grid4x4",
+   "tier": "random_fresh",
+   "arm": "iql_m",
+   "base": "iql",
+   "gradient_steps": 2,
+   "declared_steps": 2,
+   "seconds": 4.09676194190979,
+   "started_unix": 1793142078.5290918,
+   "finished_unix": 1793142085.5691414,
+   "final_loss": 20.686351776123047,
+   "status": "done"
+  }
+ ]
+}
+smoke exit=0
+end 2026-10-27T23:01:34Z  00:01:34 up 22:33,  1 user,  load average: 2.50, 1.98, 1.10
