@@ -2880,7 +2880,7 @@ whole suite did not. T.5-2 runs it at a head that holds the artifacts. It change
 
 ---
 
-# ✅ AMENDMENT U — 2026-11-07, after midnight: G5's fix round VERIFIED (`aeb0217`, `1cc87d9`); T.4's corrected sentences ACCEPTED by the author; G5 PASSED; P9.1 MERGED (M2), §6 ticked
+# ✅ AMENDMENT U — 2026-11-07, midday: G5's fix round VERIFIED (`aeb0217`, `1cc87d9`); T.4's corrected sentences ACCEPTED by the author; G5 PASSED; P9.1 MERGED (M2), §6 ticked
 
 ## U.1 The fix round, verified
 - **The chain since `d3cd0c3`:**

@@ -1,5 +1,57 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_451_p9_1_m2.patch` — the skip ceiling moves 428 → 451 after P9.1's merge M2; every new skip is one of P9.1's output-, corpus-, CityFlow- or history-gated tests
+
+**Apply with:**
+```bash
+cd /home/filip/rltraffic && git apply docs/patches/ci_gate_ceiling_451_p9_1_m2.patch && .venv/bin/pytest tests/test_ci_gate.py -q && git add .github/ci/ci_baseline.json tests/test_ci_gate.py && git commit -m "ci(ceiling): 428 -> 451 OBSERVED on run 42369349255 at adadadc -- P9.1 M2's output-, corpus-, CityFlow- and history-gated tests" && git push origin main
+```
+The push also carries the coordinator's unpushed docs commit beneath it: this patch, this entry, the time-label correction in
+`BRIEF_46` Amendment U and `BRIEF_48` Amendment K, and plan v3.48. One push, one CI run.
+
+**Measured, not read off a summary.**
+- **The run:** `42369349255` on `main` at `adadadc`, which is `BRIEF_48` Amendment K, docs only, on the merge M2 `42e41d8`.
+  - The suite step PASSED on both legs and only the ceiling gate failed: the registered route working.
+  - The three guards, the wheel gate and `libc-matrix` passed.
+- **Leg against leg:** both legs downloaded, and every `<skipped>` message extracted from `junit.xml` (`output/ci_runs/skips.py`).
+  Identical: 4,274 tests, 451 skipped, 0 failures, 0 errors, 104 distinct texts on both.
+- **Run against run,** against the last green run on `main`, `42295592186` at `80f1387` (3,952 tests, 428 skipped — the current
+  ceiling). **23 new skips in 8 texts, nothing removed:**
+  - +17 `campaign_output`:
+    - *"needs the main tree's registered output/ … and the v1.1 corpus with A27(d)'s two random_fresh tiers"* (11, the fixture
+      tree's tests);
+    - *"T-regress needs the committed P9.1 artifacts and the campaign's run directories …"* (5);
+    - *"needs the main tree's pinned output/ …"* (1);
+  - +3 `corpus_or_checkpoint`:
+    - *"the grid checkpoints live under the main tree's output/ …"* (1);
+    - *"format v1.1 corpus not found … to declare the mixture"* (1);
+    - *"the hz1x1 random_fresh tier is collected at G3's first stage …"* (1);
+  - +1 `cityflow`: *"could not import 'cityflow': No module named 'cityflow'"*;
+  - +2 `shallow_checkout`: *"commit cb61ee7 (the campaign's first trainings) is not in this repository"*. The runner's checkout
+    is shallow, so the merged history's older commits are absent;
+  - between the two runs' commits the only change under `tests/` is the merge M2's, so its test files account for the whole
+    difference in collected tests (3,952 → 4,274, +322).
+
+**What the patch changes:**
+- `skip_ceiling` 428 → 451;
+- `skip_breakdown`: `campaign_output` +17, `corpus_or_checkpoint` +3, `cityflow` +1, `shallow_checkout` +2;
+- `ceiling_if_cityflow_were_built` (the ceiling minus the CityFlow-gated skips) recomputed: 403;
+- a new `measured` block whose `superseded` is the 428 block, with its `why_it_was_wrong` ("EXPIRED AS DECLARED");
+- `tests/test_ci_gate.py`: `CEILING_CHAIN` gains 451 at its head, its one literal.
+
+**Verified before handing it over:**
+- **The builder.** `output/ci_runs/build_ceiling_patch_p91m2.py`, with its classification in
+  `output/ci_runs/classification_p91m2.json`, built the patch.
+  - It refuses a leg with a failure, a removed message, an unclassified new message or an unused classification.
+  - It checks that `adadadc` is docs only on the two-parent merge M2 `42e41d8`.
+- **On a scratch worktree of `main` with the patch applied:**
+  - `tests/test_ci_gate.py` 34 passed;
+  - the gate on both legs' real reports (`ci_gate.py pytest-gate`) exits 0 with the patched baseline and 1 with `main`'s
+    unpatched one.
+- **Four mutants of the patched baseline each fail `tests/test_ci_gate.py`:** the breakdown off by one, the CityFlow alternative off
+  by one, the chain link changed, and the `why_it_was_wrong` removed.
+- **The last checks.** `git apply --check` is clean on `main`, and `scripts/check_english.sh` exits 0 on the patch.
+
 ## `ci_gate_ceiling_428_p9_2.patch` — the skip ceiling moves 405 → 428 after P9.2's two merges; every new skip is one of P9.2's draws- or output-gated tests
 
 **Apply with:**

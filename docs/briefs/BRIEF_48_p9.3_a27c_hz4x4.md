@@ -1566,7 +1566,7 @@ they are, and do not run `old-cells` or `report`.
 
 ---
 
-# ✅ AMENDMENT K — 2026-11-07, after midnight: P9.1 MERGED (`42e41d8`); `old-cells` and `report` CLEARED, once each, with P9.1's two committed artifacts as the 18 counterparts' source; then G4
+# ✅ AMENDMENT K — 2026-11-07, midday: P9.1 MERGED (`42e41d8`); `old-cells` and `report` CLEARED, once each, with P9.1's two committed artifacts as the 18 counterparts' source; then G4
 
 ## K.1 What changed
 - **P9.1 merged at `42e41d8`** (`BRIEF_46` Amendments T and U). G5 passed after one fix round, which changed only a test's
