@@ -78,6 +78,41 @@ P9_1_COUNTERPARTS: tuple[tuple[str, str], ...] = tuple(
     (cell.method, cell.tier) for cell in pb.evaluation_cells() if (cell.method, cell.tier) not in GRID_COUNTERPARTS
 )
 
+#: ``BRIEF_48`` Amendment K, K.1: P9.1's two committed artifacts, the source of the 18 counterparts, each pinned by the sha256
+#: of its bytes at ``c0daeb7`` and on ``main`` (P9.1 merged at ``42e41d8``).
+P9_1_ARTIFACTS: Mapping[str, tuple[str, str]] = {
+    "exposure_parity": ("docs/data/p9_1_exposure_parity.json",
+                        "d49088c369cefabf95d58286682ddfb876d61c9218f51ea902a85de28956adf8"),
+    "random_fresh": ("docs/data/p9_1_random_fresh.json",
+                     "b49ebefd8886cdb2ca26b54ebb5097e4bf9a73711fece1a5ebcf4fbb07f8b103"),
+}
+
+
+def p9_1_source(method: str, tier: str) -> tuple[str, str]:
+    """J.9's map: the artifact path and record key of an hz4x4 cell's P9.1 counterpart -- P9.1's grid cell of the same arm
+    on the same tier, from the random-fresh artifact (A27 (d)) on ``random_fresh`` and the exposure-parity artifact
+    (A27 (b)) on every other tier."""
+    path = P9_1_ARTIFACTS["random_fresh" if tier == "random_fresh" else "exposure_parity"][0]
+    return path, f"p9_1:grid4x4:{method}@{tier}"
+
+
+def read_p9_1_artifacts(repo_root: str | Path) -> dict[str, tuple[Mapping[str, Any], str]]:
+    """The two pinned artifacts' ``records``, by path, each with its sha256 -- refused unless the file's bytes have the
+    sha256 K.1 pins, so the old cells are copied from the committed bytes and no other."""
+    import hashlib
+    import json
+
+    out: dict[str, tuple[Mapping[str, Any], str]] = {}
+    for relative, pinned in P9_1_ARTIFACTS.values():
+        data = (Path(repo_root) / relative).read_bytes()
+        sha = hashlib.sha256(data).hexdigest()
+        if sha != pinned:
+            raise ValueError(f"{relative} has sha256 {sha}, not the {pinned} that BRIEF_48 Amendment K, K.1 pins; the old "
+                             "cells are copied from the pinned bytes only")
+        out[relative] = (json.loads(data)["records"], sha)
+    return out
+
+
 #: What the artifact is not, in the order the paper's limitations section reads them.
 WHAT_THIS_IS_NOT: tuple[str, ...] = (
     "not a new topology: the grid's 4x4 lattice with real demand and real road geometry (A27 (i))",
@@ -298,8 +333,10 @@ def training_block(output_root: str | Path) -> list[dict[str, Any]]:
     return rows
 
 
-def old_cells(grid_cells: Mapping[str, Any], *, provenance: Mapping[str, Any]) -> dict[str, Any]:
-    """The grid's corresponding cells, copied per episode with source path and digest; P9.1's named as pending.
+def old_cells(
+    grid_cells: Mapping[str, Any], *, provenance: Mapping[str, Any], p9_1: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
+    """The grid's corresponding cells, copied per episode with source path and digest -- all 25 when *p9_1* is given.
 
     *grid_cells* and *provenance* are ``tier_statements.load_inputs``' -- P5.2c's reader, which reads every evaluation
     file at its manifest's digest and every ``att_engine`` row from P8.4b's campaign at its anchor.  Each copied cell
@@ -307,7 +344,20 @@ def old_cells(grid_cells: Mapping[str, Any], *, provenance: Mapping[str, Any]) -
     ``att_engine`` rows' anchor is carried once.  Nothing is re-rolled (``BRIEF_48`` Amendment A, A.5 Q4).  The counterpart
     of ``random@mappo1000`` carries :data:`ANCHOR_LABEL` (Amendment I, I.3-3) -- it is the grid's one random cell, not a
     ``mappo1000`` cell -- and every other entry's ``label`` is ``None``.
+
+    *p9_1* is :func:`read_p9_1_artifacts`' result (``BRIEF_48`` Amendment K, K.2).  Each of the 18 of
+    :data:`P9_1_COUNTERPARTS` is read from it by J.9's map (:func:`p9_1_source`) and copied per episode in (seed, draw) order
+    -- EVERY field P9.1's record carries -- with the artifact's path, its sha256 and the record key; nothing is re-rolled.
+    A key that is missing, a cell that is not exactly the 500 records of seeds 101-505 x draws 1000-1099, and a record whose
+    ``arm`` or ``tier`` is not its cell's are refused.  ``pending`` is then empty.  Without *p9_1* the 18 are listed as
+    pending, which :func:`refuse_pending` refuses to write (J.9); the ``old-cells`` command always reads them.
+
+    The report reads none of a row's fields: it reads the artifact's ``format_version``, the sha256 of its canonical JSON,
+    each cell's ``counterpart`` and the ``pending`` list (:func:`report_artifact`).  The rows are kept whole for the paper
+    track (A27 (a): the per-episode values of every old cell a new cell is compared with).
     """
+    from offline.dt_gate import HELD_OUT_DRAWS
+
     digests = {str(entry["file"]): entry for entry in provenance["inputs"]}
     cells: dict[str, Any] = {}
     for (method, tier), cell_id in GRID_COUNTERPARTS.items():
@@ -322,18 +372,43 @@ def old_cells(grid_cells: Mapping[str, Any], *, provenance: Mapping[str, Any]) -
             "eval_file_sha256": digests[file]["sha256"], "eval_file_anchor": digests[file]["anchor"],
             "n": len(cell.rows), "rows": [dict(row) for row in cell.rows],
         }
+    expected = {(int(seed), int(draw)) for seed in hz.SEEDS for draw in HELD_OUT_DRAWS}
+    pending: dict[str, str] = {}
+    for method, tier in P9_1_COUNTERPARTS:
+        cell_arm = f"{method}@{tier}"
+        if p9_1 is None:
+            pending[cell_arm] = ("P9.1's committed artifact (BRIEF_46; A27 (b), (d)), not read: old-cells reads it from the "
+                                 "two artifacts BRIEF_48 Amendment K, K.1 pins")
+            continue
+        path, key = p9_1_source(method, tier)
+        records, sha = p9_1[path]
+        if key not in records:
+            raise ValueError(f"{key} is missing from {path}: J.9's map names it as {cell_arm}'s counterpart")
+        rows = sorted((dict(row) for row in records[key]), key=lambda row: (int(row["seed"]), int(row["draw_id"])))
+        pairs = [(int(row["seed"]), int(row["draw_id"])) for row in rows]
+        if len(rows) != len(expected) or set(pairs) != expected:
+            raise ValueError(f"{key} in {path}: {len(rows)} records over {len(set(pairs))} (seed, draw) pairs; a counterpart "
+                             f"is exactly the {len(expected)} records of seeds 101-505 x draws 1000-1099 (BRIEF_48 K.2)")
+        for index, row in enumerate(rows):
+            if row.get("arm") != cell_arm or row.get("tier") != tier:
+                raise ValueError(f"{key} in {path}: record {index} carries arm {row.get('arm')!r} and tier "
+                                 f"{row.get('tier')!r}, not its cell's {cell_arm!r} and {tier!r}")
+        cells[cell_arm] = {
+            "counterpart": key, "label": None, "source": "p9_1", "grid_arm": cell_arm, "artifact": path,
+            "artifact_sha256": sha, "record_key": key, "n": len(rows), "rows": rows,
+        }
     return {
         "format_version": ARTIFACT_FORMAT_OLD_CELLS,
-        "registered_in": "PREREGISTRATION A27 (a) (the old cells a new cell is compared with); BRIEF_48 Amendment A, A.5 Q4",
+        "registered_in": ("PREREGISTRATION A27 (a) (the old cells a new cell is compared with); BRIEF_48 Amendment A, A.5 Q4; "
+                          "J.9 (the 18 counterparts) and Amendment K (their source)"),
         "rule": ("the grid's corresponding cells, by reference and per-episode copy from their committed sources with "
                  "path and digest; nothing re-rolled on the grid"),
-        "reader": ("offline.tier_statements.load_inputs (P5.2c): every evaluation file at its manifest digest, every "
-                   "att_engine row from P8.4b's campaign at its anchor"),
+        "reader": ("the seven: offline.tier_statements.load_inputs (P5.2c), every evaluation file at its manifest digest, "
+                   "every att_engine row from P8.4b's campaign at its anchor; the eighteen: P9.1's two committed artifacts, "
+                   "each at the sha256 BRIEF_48 Amendment K, K.1 pins"),
         "att_engine_rows": {"p8_4b_campaign": provenance["p8_4b_campaign"], "p8_4b_rows": provenance["p8_4b_rows"]},
         "cells": cells,
-        "pending": {f"{method}@{tier}": ("P9.1's committed artifact (BRIEF_46; A27 (b), (d)), not committed when this "
-                                         "was built")
-                    for method, tier in P9_1_COUNTERPARTS},
+        "pending": pending,
     }
 
 
@@ -412,7 +487,8 @@ def build_parser() -> argparse.ArgumentParser:
 def _run_old_cells(args: argparse.Namespace) -> int:
     out = hz._refuse_existing(args.out)
     inputs = st.load_inputs(st.Roots(repo_root=hz._repo_root(), output_root=Path(args.output_root)))
-    payload = {**old_cells(inputs.cells, provenance=inputs.provenance), "git": hz._git()}
+    payload = {**old_cells(inputs.cells, provenance=inputs.provenance, p9_1=read_p9_1_artifacts(hz._repo_root())),
+               "git": hz._git()}
     refuse_pending(payload, what=f"old-cells refuses to write {out}")
     hz._write_artifact(payload, out)
     print(f"wrote {out}: {len(payload['cells'])} copied cell(s), {len(payload['pending'])} pending", flush=True)

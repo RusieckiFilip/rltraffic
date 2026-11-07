@@ -562,3 +562,18 @@ def test_report_refuses_an_old_cells_artifact_with_a_pending_cell(tmp_path: Path
     with pytest.raises(FileNotFoundError, match="missing"):
         rp._run_report(args)
     assert sorted(path.name for path in data.iterdir()) == ["p9_3_old_cells.json"]
+
+
+def test_the_old_cells_command_writes_all_25_from_the_pinned_artifacts(tmp_path: Path,
+                                                                      monkeypatch: pytest.MonkeyPatch) -> None:
+    # K.2 end to end: the command reads the repository's two pinned P9.1 artifacts (the grid's inputs stand in), copies the
+    # 18 beside the seven, and writes one artifact with nothing pending.
+    monkeypatch.setattr(st, "load_inputs", lambda roots, **kwargs: _GridInputs())
+    out = tmp_path / "p9_3_old_cells.json"
+    args = rp.build_parser().parse_args(["old-cells", "--out", str(out), "--output-root", str(tmp_path / "output")])
+    assert rp._run_old_cells(args) == 0
+    written = json.loads(out.read_bytes())
+    assert (len(written["cells"]), written["pending"]) == (25, {})
+    assert {entry["artifact_sha256"] for entry in written["cells"].values() if entry["source"] == "p9_1"} == {
+        "d49088c369cefabf95d58286682ddfb876d61c9218f51ea902a85de28956adf8",
+        "b49ebefd8886cdb2ca26b54ebb5097e4bf9a73711fece1a5ebcf4fbb07f8b103"}
