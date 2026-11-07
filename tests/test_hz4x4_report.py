@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -303,24 +304,105 @@ def _grid_counterparts() -> tuple[dict[str, Any], dict[str, Any]]:
     return grid, provenance
 
 
-def test_old_cells_copy_each_counterpart_with_its_source_and_digest_and_name_p9_1s_as_pending() -> None:
+#: K.1's two artifacts, by the paths J.9's map names.
+P9_1_PATHS = {"exposure_parity": "docs/data/p9_1_exposure_parity.json", "random_fresh": "docs/data/p9_1_random_fresh.json"}
+
+
+def _p9_1_records(method: str, tier: str, *, offset: float = 0.0) -> list[dict[str, Any]]:
+    """One synthetic P9.1 cell: its 500 records in P9.1's record format, (seed, draw) order."""
+    arm = f"{method}@{tier}"
+    return [{"arm": arm, "att_engine": 150.0 + offset + seed / 1000.0 + (draw - 1000) / 100.0,
+             "att_ours": 155.0 + offset + seed / 1000.0 + (draw - 1000) / 100.0, "created": 1323, "draw_id": draw,
+             "entered": 1323, "entered_fraction": 1.0, "episode_reward": -2000.0 - draw, "horizon_vehicle_count": 15.0,
+             "never_entered": 0, "seed": seed, "source": f"synthetic {arm}", "tier": tier}
+            for seed in SEEDS for draw in range(1000, 1100)]
+
+
+def _p9_1_artifacts() -> dict[str, tuple[dict[str, Any], str]]:
+    """``read_p9_1_artifacts``' shape: per artifact path, its records by key and its sha256.  The exposure-parity artifact
+    also holds a DECOY ``random_fresh`` cell with other values, which J.9's map must never read."""
+    exposure = {f"p9_1:grid4x4:{m}@{t}": _p9_1_records(m, t) for m, t in rp.P9_1_COUNTERPARTS if t != "random_fresh"}
+    fresh = {f"p9_1:grid4x4:{m}@{t}": _p9_1_records(m, t, offset=7.0) for m, t in rp.P9_1_COUNTERPARTS
+             if t == "random_fresh"}
+    exposure["p9_1:grid4x4:bc_m@random_fresh"] = _p9_1_records("bc_m", "random_fresh", offset=999.0)
+    return {P9_1_PATHS["exposure_parity"]: (exposure, "e" * 64), P9_1_PATHS["random_fresh"]: (fresh, "f" * 64)}
+
+
+def test_old_cells_copy_all_25_counterparts_with_their_sources_and_digests_and_leave_nothing_pending() -> None:
+    # BRIEF_48 Amendment K, K.2: this test was J.9-4's "...and_name_p9_1s_as_pending"; renamed for the new expectation.
     grid, provenance = _grid_counterparts()
-    old = rp.old_cells(grid, provenance=provenance)
+    p9_1 = _p9_1_artifacts()
+    old = rp.old_cells(grid, provenance=provenance, p9_1=p9_1)
     assert old["format_version"] == rp.ARTIFACT_FORMAT_OLD_CELLS
-    assert list(old["cells"]) == [f"{m}@{t}" for m, t in rp.GRID_COUNTERPARTS]
+    assert list(old["cells"]) == [f"{m}@{t}" for m, t in rp.GRID_COUNTERPARTS] + [f"{m}@{t}" for m, t in
+                                                                                   rp.P9_1_COUNTERPARTS]
+    assert len(old["cells"]) == 25 and old["pending"] == {}
     for index, ((method, tier), cell_id) in enumerate(rp.GRID_COUNTERPARTS.items()):
         entry = old["cells"][f"{method}@{tier}"]
         assert entry["counterpart"] == cell_id
         assert entry["rows"] == [dict(r) for r in grid[cell_id].rows] and len(entry["rows"]) == 15
         assert (entry["eval_file"], entry["eval_file_sha256"]) == (f"output/{grid[cell_id].spec.eval_file}",
                                                                    f"{index:064x}")
-    assert len(old["pending"]) == 18
-    assert list(old["pending"]) == [f"{m}@{t}" for m, t in rp.P9_1_COUNTERPARTS]
+    for method, tier in rp.P9_1_COUNTERPARTS:
+        entry = old["cells"][f"{method}@{tier}"]
+        path = P9_1_PATHS["random_fresh" if tier == "random_fresh" else "exposure_parity"]
+        key = f"p9_1:grid4x4:{method}@{tier}"
+        records, sha = p9_1[path]
+        assert (entry["counterpart"], entry["artifact"], entry["artifact_sha256"], entry["record_key"]) == (
+            key, path, sha, key)
+        assert entry["rows"] == records[key] and len(entry["rows"]) == 500
+        assert entry["label"] is None
     assert old["att_engine_rows"] == {"p8_4b_campaign": provenance["p8_4b_campaign"],
                                       "p8_4b_rows": provenance["p8_4b_rows"]}
     provenance["inputs"] = provenance["inputs"][1:]
     with pytest.raises(ValueError, match="no digest"):
-        rp.old_cells(grid, provenance=provenance)
+        rp.old_cells(grid, provenance=provenance, p9_1=p9_1)
+
+
+def test_the_18_are_read_from_p9_1s_pinned_artifacts_at_their_committed_bytes() -> None:
+    p9_1 = rp.read_p9_1_artifacts(REPO)
+    pinned = {P9_1_PATHS["exposure_parity"]: "d49088c369cefabf95d58286682ddfb876d61c9218f51ea902a85de28956adf8",
+              P9_1_PATHS["random_fresh"]: "b49ebefd8886cdb2ca26b54ebb5097e4bf9a73711fece1a5ebcf4fbb07f8b103"}
+    assert {path: sha for path, (_, sha) in p9_1.items()} == pinned
+    grid, provenance = _grid_counterparts()
+    old = rp.old_cells(grid, provenance=provenance, p9_1=p9_1)
+    assert old["pending"] == {}
+    raw = {path: json.loads((REPO / path).read_bytes())["records"] for path in pinned}  # a second, independent read
+    for method, tier in rp.P9_1_COUNTERPARTS:
+        path = P9_1_PATHS["random_fresh" if tier == "random_fresh" else "exposure_parity"]
+        key = f"p9_1:grid4x4:{method}@{tier}"
+        entry = old["cells"][f"{method}@{tier}"]
+        assert (entry["artifact"], entry["artifact_sha256"], entry["record_key"]) == (path, pinned[path], key)
+        assert entry["rows"] == sorted(raw[path][key], key=lambda r: (r["seed"], r["draw_id"]))
+        assert len(entry["rows"]) == 500 and set(entry["rows"][0]) == set(raw[path][key][0])
+
+
+def test_a_p9_1_artifact_whose_bytes_are_not_the_pinned_ones_is_refused(tmp_path: Path) -> None:
+    (tmp_path / "docs" / "data").mkdir(parents=True)
+    for path in P9_1_PATHS.values():
+        shutil.copyfile(REPO / path, tmp_path / path)
+    assert set(rp.read_p9_1_artifacts(tmp_path)) == set(P9_1_PATHS.values())
+    tampered = tmp_path / P9_1_PATHS["random_fresh"]
+    tampered.write_bytes(tampered.read_bytes() + b"\n")  # the same JSON, other bytes
+    with pytest.raises(ValueError, match="b49ebefd8886cdb2ca26b54ebb5097e4bf9a73711fece1a5ebcf4fbb07f8b103"):
+        rp.read_p9_1_artifacts(tmp_path)
+
+
+def test_old_cells_refuse_a_p9_1_counterpart_that_is_missing_short_or_misfiled() -> None:
+    grid, provenance = _grid_counterparts()
+    exposure, fresh = P9_1_PATHS["exposure_parity"], P9_1_PATHS["random_fresh"]
+    cases = [
+        ("missing", lambda a: a[fresh][0].pop("p9_1:grid4x4:dt_nomix@random_fresh")),
+        ("500 records", lambda a: a[exposure][0]["p9_1:grid4x4:iql_m@fixedtime"].pop()),
+        ("500 records", lambda a: a[exposure][0]["p9_1:grid4x4:bc_m@maxpressure"][0].update(seed=606)),
+        ("arm", lambda a: a[fresh][0]["p9_1:grid4x4:behaviour@random_fresh"][3].update(arm="bc_m@random_fresh")),
+        ("tier", lambda a: a[exposure][0]["p9_1:grid4x4:bc_top10_m@mappo1000"][7].update(tier="maxpressure")),
+    ]
+    for word, edit in cases:
+        p9_1 = _p9_1_artifacts()
+        edit(p9_1)
+        with pytest.raises(ValueError, match=word):
+            rp.old_cells(grid, provenance=provenance, p9_1=p9_1)
 
 
 @needs_grid_output
@@ -441,6 +523,9 @@ class _GridInputs:
 def test_old_cells_refuses_to_write_while_any_counterpart_is_pending(tmp_path: Path,
                                                                      monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(st, "load_inputs", lambda roots, **kwargs: _GridInputs())
+    # BRIEF_48 K.2: old-cells now reads P9.1's two artifacts and leaves nothing pending; without their records -- the
+    # state J.9's ruling guards -- the 18 are pending, and the command must refuse.
+    monkeypatch.setattr(rp, "read_p9_1_artifacts", lambda repo_root: None)
     out = tmp_path / "data" / "p9_3_old_cells.json"
     out.parent.mkdir()
     args = rp.build_parser().parse_args(["old-cells", "--out", str(out), "--output-root", str(tmp_path / "output")])
