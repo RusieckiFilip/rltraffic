@@ -1,0 +1,62 @@
+"""BRIEF_46 Amendment C, C.4.2 -- the training smoke.
+
+Every distinct training cell of ``corrective_round.training_runs()`` (51), ONE seed (101), through
+``corrective_round.train`` -- the campaign's own training function -- on the real corpora, with exactly two substitutions:
+the gradient steps (2: ``offline.a27_arms.recipe`` wrapped at runtime so every recipe it returns carries ``steps=2``;
+every caller on the training path imports it inside the function, at call time) and the output root (a scratch
+directory).  No spy, no stub trainer.  A refusal stops the smoke and is reported.
+
+Usage: python -P smoke_train.py REPO SCRATCH_OUTPUT_ROOT DEVICE
+"""
+from __future__ import annotations
+
+import dataclasses
+import json
+import sys
+import time
+import traceback
+from pathlib import Path
+
+repo, scratch, device = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
+sys.path.insert(0, str(repo))
+
+import offline.a27_arms as a27  # noqa: E402
+import offline.corrective_round as cr  # noqa: E402
+
+registered = a27.recipe
+
+
+def two_steps(scenario: str, arm: str):  # type: ignore[no-untyped-def]
+    return dataclasses.replace(registered(scenario, arm), steps=2)
+
+
+a27.recipe = two_steps
+roots = cr.Roots(repo_root=repo, output_root=scratch, corpus_root=Path("/home/filip/rltraffic/datasets_v11"),
+                 draws_root=Path("/home/filip/rltraffic/scenarios/draws"))
+order: list[cr.Cell] = []
+for cell, _seed in cr.training_runs():
+    if cell not in order:
+        order.append(cell)
+assert len(order) == 51, len(order)
+print(f"smoke: {len(order)} cells, seed 101, device {device}, output root {scratch}", flush=True)
+started = time.time()
+try:
+    outcome = cr.train(roots, cells=order, device=device, seeds=(101,), log_every=0)
+except Exception:  # a refusal stops the smoke and is reported
+    print("SMOKE STOPPED by:", flush=True)
+    traceback.print_exc()
+    outcome = None
+wall = time.time() - started
+records = []
+for i, cell in enumerate(order, 1):
+    path = cr.run_record_path(roots, cell.scenario, cell.tier, cell.arm, 101)
+    if path.exists():
+        r = json.loads(path.read_text(encoding="utf-8"))
+        records.append({"n": i, "scenario": cell.scenario, "tier": cell.tier, "arm": cell.arm, "base": r["base"],
+                        "gradient_steps": r["gradient_steps"], "declared_steps": r["declared_steps"],
+                        "seconds": r["seconds"], "started_unix": r["started_unix"], "finished_unix": r["finished_unix"],
+                        "final_loss": r["final_loss"], "status": cr.run_status(roots, cell, 101)})
+    else:
+        records.append({"n": i, "scenario": cell.scenario, "tier": cell.tier, "arm": cell.arm, "status": "NOT TRAINED"})
+print(json.dumps({"outcome": outcome, "wall_seconds": wall, "completed": sum(r["status"] == "done" for r in records),
+                  "records": records}, indent=1), flush=True)

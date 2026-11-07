@@ -1,0 +1,32 @@
+"""Re-time ONE full matched IQL grid run (iql_m@mappo1000, seed 101, 40,000 steps) through the campaign's own train_run,
+because the pre-flight's first measurement spans a machine suspension (GPU trace gap 23:39:06 -> 10:23:44).
+
+Usage: python time_iqlm.py <scratch output root> <repo root>.  Writes only under the scratch output root.
+"""
+from __future__ import annotations
+
+import json
+import sys
+import time
+from pathlib import Path
+
+import torch
+
+import offline.corrective_round as cr
+
+out = Path(sys.argv[1])
+roots = cr.Roots(repo_root=Path(sys.argv[2]), output_root=out, corpus_root=Path("/home/filip/rltraffic/datasets_v11"),
+                 draws_root=Path("/home/filip/rltraffic/scenarios/draws"))
+cell = next(c for c in cr.training_cells() if (c.scenario, c.tier, c.arm) == ("grid4x4", "mappo1000", "iql_m"))
+wall0, mono0 = time.time(), time.monotonic()
+inputs = cr._grid_inputs(roots, "mappo1000")
+wall1, mono1 = time.time(), time.monotonic()
+record = cr.train_run(roots, cell, 101, inputs, device=torch.device("cuda"), log_every=5000)
+wall2, mono2 = time.time(), time.monotonic()
+print(json.dumps({
+    "cell": cell.key, "seed": 101, "device": record["device"], "gradient_steps": record["gradient_steps"],
+    "record_seconds": record["seconds"], "clock": record["clock"],
+    "inputs_wall_seconds": wall1 - wall0, "inputs_monotonic_seconds": mono1 - mono0,
+    "train_run_wall_seconds": wall2 - wall1, "train_run_monotonic_seconds": mono2 - mono1,
+    "started_wall": wall1, "finished_wall": wall2,
+}, indent=2, sort_keys=True))

@@ -1,0 +1,16 @@
+mutant                                           result    evidence
+Q8-01 old-cell list drops behaviour@fixedtime    KILLED    FAILED tests/test_corrective_round_data.py::test_the_hz1x1_old_cells_are_the_registered_cells_a27_compares_with
+Q8-02 P1 reads att_ours under both definitions   KILLED    FAILED tests/test_corrective_verdicts.py::test_p1_and_the_behaviour_comparisons_read_each_definition_from_its_own_column
+Q8-03 the comparison's sides swapped             KILLED    FAILED tests/test_corrective_verdicts.py::test_the_behaviour_comparison_routes_reproduce_p4_4s_and_p4_6s_committed_iql_comparisons
+Q8-04 a seedless row's seed cast to int          KILLED    FAILED tests/test_corrective_verdicts.py::test_a_seedless_behaviour_cell_compares_as_its_registered_artifact_compares_it
+Q8-05 constructed rows' att_engine from the expert always KILLED    FAILED tests/test_corrective_verdicts.py::test_the_constructed_mixture_reference_reproduces_p4_7s_committed_cell_and_carries_att_eng
+Q8-06 P1 never moves                             KILLED    FAILED tests/test_corrective_verdicts.py::test_p1_moves_exactly_when_the_registered_outcome_changes
+Q8-07 P1 episodes keep their rows' arm (no slot label) KILLED    FAILED tests/test_corrective_verdicts.py::test_p1_by_the_registered_scorer_reproduces_the_committed_p1_from_the_committed_episodes[p4_6
+Q8-08 report: P4.6's mappo1000 comparison reads P4.4's behaviour cell KILLED    FAILED tests/test_corrective_report_build.py::test_iql_targets_pairs_every_tier_and_summarises_the_twelve
+Q8-09 report: P1's reproduction check removed    KILLED    FAILED tests/test_corrective_report_build.py::test_an_original_that_does_not_reproduce_its_committed_statement_is_refused
+Q8-10 report: the comparisons' reproduction check removed KILLED    FAILED tests/test_corrective_report_build.py::test_an_original_that_does_not_reproduce_its_committed_statement_is_refused
+Q8-11 report: re-score reads the old IQL         KILLED    FAILED tests/test_corrective_report_build.py::test_q8_rescores_every_behaviour_comparison_with_iql_in_its_artifacts_order
+Q8-12 report: P1 re-score without the substitution KILLED    FAILED tests/test_corrective_report_build.py::test_q8_rescores_p1_of_p4_6_and_p4_7_with_iql_t_in_iqls_slot_beside_the_original
+Q8-13 report: the re-roll determinism check ignores att_engine KILLED    FAILED tests/test_corrective_report_load.py::test_two_re_rolls_of_the_same_episodes_must_agree_on_every_value
+Q8-14 report: the constructed reference's P4.7 join removed KILLED    FAILED tests/test_corrective_report_load.py::test_a_mixture_reference_is_p4_7s_construction_from_p4_6s_components_or_is_refused
+Q8-15 report: P4.4's comparison with behaviour on the right KILLED    FAILED tests/test_corrective_report_build.py::test_iql_targets_pairs_every_tier_and_summarises_the_twelve

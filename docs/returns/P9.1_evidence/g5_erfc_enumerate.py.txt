@@ -1,0 +1,46 @@
+"""BRIEF_46 Amendment T, T.3: the guard's pairs enumerated before its literal is touched -- the walk of
+tests/test_erfc_determinism.py::test_the_committed_p_values_all_still_reproduce_exactly replicated over docs/data
+(rglob), counted by artifact and by T.3's path classes, and every pair recomputed through the test module's own
+_expected_p_value and compared under ==.
+
+Usage: python -P erfc_enumerate.py REPO
+"""
+import json
+import re
+import sys
+from collections import Counter
+from pathlib import Path
+
+REPO = Path(sys.argv[1])
+sys.path.insert(0, str(REPO))
+from tests.test_erfc_determinism import ONE_SIDED_PAIRS, _expected_p_value  # noqa: E402
+
+pairs = []
+
+
+def walk(node, path):
+    if isinstance(node, dict):
+        if "z" in node and "p_value" in node and isinstance(node.get("z"), (int, float)):
+            pairs.append((path, float(node["z"]), float(node["p_value"]), node.get("alternative")))
+        for key, value in node.items():
+            walk(value, f"{path}.{key}")
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            walk(value, f"{path}[{index}]")
+
+
+for artifact in sorted((REPO / "docs" / "data").rglob("*.json")):
+    walk(json.loads(artifact.read_text(encoding="utf-8")), artifact.name)
+new = [p for p in pairs if p[0].startswith("p9_1_")]
+print(f"pairs {len(pairs)}; outside p9_1_*: {len(pairs) - len(new)}; in p9_1_*: {len(new)}")
+print("by artifact:", dict(Counter(p[0].split(".json")[0] + ".json" for p in new).most_common()))
+classes = Counter(re.sub(r"\[\d+\]", "[*]", p[0]).replace(".att_engine.", ".{d}.").replace(".att_ours.", ".{d}.")
+                  for p in new)
+for cls, n in sorted(classes.items()):
+    print(f"  {n:4d}  {cls}")
+print("p9_1 pairs carrying an alternative:", sum(p[3] is not None for p in new))
+one_sided = sorted((path, alternative) for path, _z, _p, alternative in pairs if alternative is not None)
+print("the one-sided pairs are exactly ONE_SIDED_PAIRS:", one_sided == ONE_SIDED_PAIRS, f"({len(one_sided)})")
+print("p9_1 pairs with z = 0.0 and p = 1.0:", sum(z == 0.0 and p == 1.0 for _path, z, p, _a in new))
+moved = [(path, z, p) for path, z, p, a in pairs if _expected_p_value(z, a) != p]
+print(f"moved (recomputed != committed under ==): {len(moved)} of {len(pairs)}")

@@ -1,0 +1,38 @@
+[
+ {
+  "name": "O-1 the whole run counted, not its overlap",
+  "file": "offline/corrective_report.py",
+  "old": "overlap = min(last, end) - max(first, start)",
+  "new": "overlap = last - first",
+  "tests": [
+   "tests/test_corrective_report_overlap.py"
+  ]
+ },
+ {
+  "name": "O-2 a run touching the window at one instant counted",
+  "file": "offline/corrective_report.py",
+  "old": "        if overlap > 0.0:\n            runs.append(",
+  "new": "        if overlap >= 0.0:\n            runs.append(",
+  "tests": [
+   "tests/test_corrective_report_overlap.py"
+  ]
+ },
+ {
+  "name": "O-3 a missing reading counted as zero",
+  "file": "offline/corrective_report.py",
+  "old": "full = [(m, u) for _, m, u in chosen if m is not None and u is not None]",
+  "new": "full = [(m or 0.0, u or 0.0) for _, m, u in chosen]",
+  "tests": [
+   "tests/test_corrective_report_overlap.py"
+  ]
+ },
+ {
+  "name": "O-4 a line whose time is not a number skipped, not refused",
+  "file": "offline/corrective_report.py",
+  "old": "            raise ValueError(f\"{path} (gpu_trace.csv line {number}) is not a reading: {line!r}\") from None",
+  "new": "            continue",
+  "tests": [
+   "tests/test_corrective_report_overlap.py"
+  ]
+ }
+]

@@ -1,0 +1,21 @@
+(1) mappo1000 40k p4_4:madt - p4_4:bc, att_engine: -0.1964 [-0.4589, +0.0660] (n = 100 draws)
+(1) mappo1000 40k p4_4:madt - p4_4:bc, att_ours: -0.2077 [-0.4690, +0.0536] (n = 100 draws)
+(1) mix50 40k p4_7:dt@mix50 - p4_7:bc@mix50, att_engine: -268.2592 [-307.6688, -228.8495] (n = 100 draws)
+(1) mix50 40k p4_7:dt@mix50 - p4_7:bc@mix50, att_ours: -126.0040 [-144.2831, -107.7248] (n = 100 draws)
+(1) the artifact's dt - bc pair on mappo1000 under att_engine: {'left_arm': 'dt', 'outcome': 'NOT RESOLVED', 'predicted': 'negative', 'right_arm': 'bc'} | at_40k: {'mean_difference': -0.19644319999044796, 'ci95_low': -0.45892806044454454, 'ci95_high': 0.06604166046364862}
+(2) D4RL bc_top10_vs_iql: mean -2466.7521433682205 [-3774.01, -1159.49] keys ['ci95_halfwidth_normalised_units', 'ci95_halfwidth_return', 'ci95_high_return', 'ci95_low_return', 'episode_median_difference', 'episodes', 'episodes_won_by_left', 'mean_difference_normalised_units', 'mean_difference_return', 'per_seed_difference', 'rank_biserial', 'seeds_won_by_left']
+(2) D4RL bc_top10_vs_iql_t: mean 1629.495530405889 [1172.01, 2086.98] keys ['ci95_halfwidth_normalised_units', 'ci95_halfwidth_return', 'ci95_high_return', 'ci95_low_return', 'episode_median_difference', 'episodes', 'episodes_won_by_left', 'mean_difference_normalised_units', 'mean_difference_return', 'per_seed_difference', 'rank_biserial', 'seeds_won_by_left']
+(2) D4RL bc_vs_bc_top10: mean 1924.7057069568043 [1330.41, 2519.00] keys ['ci95_halfwidth_normalised_units', 'ci95_halfwidth_return', 'ci95_high_return', 'ci95_low_return', 'episode_median_difference', 'episodes', 'episodes_won_by_left', 'mean_difference_normalised_units', 'mean_difference_return', 'per_seed_difference', 'rank_biserial', 'seeds_won_by_left']
+(2) D4RL bc_vs_iql: mean -542.0464364114162 [-1668.10, 584.01] keys ['ci95_halfwidth_normalised_units', 'ci95_halfwidth_return', 'ci95_high_return', 'ci95_low_return', 'episode_median_difference', 'episodes', 'episodes_won_by_left', 'mean_difference_normalised_units', 'mean_difference_return', 'per_seed_difference', 'rank_biserial', 'seeds_won_by_left']
+(2) D4RL bc_vs_iql_t: mean 3554.201237362693 [3163.06, 3945.34] keys ['ci95_halfwidth_normalised_units', 'ci95_halfwidth_return', 'ci95_high_return', 'ci95_low_return', 'episode_median_difference', 'episodes', 'episodes_won_by_left', 'mean_difference_normalised_units', 'mean_difference_return', 'per_seed_difference', 'rank_biserial', 'seeds_won_by_left']
+(2) D4RL iql_vs_iql_t: mean 4096.247673774109 [3134.56, 5057.93] keys ['ci95_halfwidth_normalised_units', 'ci95_halfwidth_return', 'ci95_high_return', 'ci95_low_return', 'episode_median_difference', 'episodes', 'episodes_won_by_left', 'mean_difference_normalised_units', 'mean_difference_return', 'per_seed_difference', 'rank_biserial', 'seeds_won_by_left']
+(3) Q3a   att_engine context  arm=None: original None           -> moved=False reading_changed=False | rank 1 of 6 (range 1..1); context, not scored
+(3) Q3a   att_ours   context  arm=None: original None           -> moved=False reading_changed=False | rank 1 of 6 (range 1..1); context, not scored
+(3) Q3b   att_engine context  arm=None: original None           -> moved=False reading_changed=False | HELD by the interval rule; context, not scored
+(3) Q3b   att_ours   context  arm=None: original None           -> moved=False reading_changed=False | HELD by the interval rule; context, not scored
+(3) Q3c   att_engine context  arm=None: original None           -> moved=False reading_changed=True | NOT RESOLVED
+(3) Q3c   att_ours   context  arm=None: original None           -> moved=False reading_changed=True | NOT RESOLVED
+(3) Q5b   att_engine verdict  arm=None: original HELD           -> moved=False reading_changed=False | resolves: the CI lies entirely below zero
+(3) Q5b   att_ours   verdict  arm=None: original HELD           -> moved=False reading_changed=False | resolves: the CI lies entirely below zero
+(3) Q5c   att_engine verdict  arm=None: original FAILED         -> moved=False reading_changed=False | resolves: the CI lies entirely above zero
+(3) Q5c   att_ours   verdict  arm=None: original FAILED         -> moved=False reading_changed=False | resolves: the CI lies entirely above zero

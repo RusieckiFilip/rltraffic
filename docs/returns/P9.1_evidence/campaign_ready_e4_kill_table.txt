@@ -1,0 +1,59 @@
+# E.4-3's mutants and more, run by $TMPDIR/p91_b2/mutate.py (one mutant at a time, PYTHONDONTWRITEBYTECODE=1, a passing control
+# first, every file restored and sha256-checked).  Sites and expected tests: campaign_ready_e4_mutants.json (25).
+
+## At c58afb8's tree (the sessions commit): 25 of 25 killed. Load 1.21 -> 1.82
+control (unmutated, 5 test targets): exit 0; 94 passed in 62.30s (0:01:02)
+mutant                                                    result    evidence
+E1 the hours plan ignored                                 KILLED    FAILED tests/test_corrective_round_sessions.py::test_a_plan_is_the_next_missing_runs_that_fit_its_hours_the_first_always_included
+E2a the stop file ignored between runs                    KILLED    FAILED tests/test_corrective_round_sessions.py::test_the_stop_file_ends_the_session_after_the_run_in_flight
+E2b the stop file ignored at the start                    KILLED    FAILED tests/test_corrective_round_sessions.py::test_no_session_starts_while_the_stop_file_exists_and_the_code_never_deletes_it
+E2c the stop file ignored by the evaluation               KILLED    FAILED tests/test_corrective_round_sessions.py::test_an_evaluation_session_ends_between_cells_at_the_stop_file_or_its_deadline
+E3 a run started after the stop file (no check before the first run)KILLED    FAILED tests/test_corrective_round_sessions.py::test_a_stop_file_that_appears_while_the_session_plans_starts_no_run
+E4 a run interrupted by the stop file (train_run checks it before the move)KILLED    FAILED tests/test_corrective_round_sessions.py::test_the_stop_file_ends_the_session_after_the_run_in_flight
+E5 evaluate started with a missing run                    KILLED    FAILED tests/test_corrective_round_sessions.py::test_the_evaluate_stage_refuses_while_any_training_run_is_missing
+E6 a second declaration that differs accepted             KILLED    FAILED tests/test_corrective_round_stages.py::test_declare_evaluation_refuses_a_manifest_that_declares_another_cell_set
+E7 max_runs ignored                                       KILLED    FAILED tests/test_corrective_round_sessions.py::test_a_plan_is_the_next_missing_runs_that_fit_its_hours_the_first_always_included
+E8 the first run not always included                      KILLED    FAILED tests/test_corrective_round_sessions.py::test_a_plan_is_the_next_missing_runs_that_fit_its_hours_the_first_always_included
+E9 P8.4b's runner never asks                              KILLED    FAILED tests/test_att_rederivation_should_stop.py::test_a_true_ends_the_campaign_between_episodes_and_the_next_call_resumes_from_disk
+E10 evaluate's per-cell question dropped                  KILLED    FAILED tests/test_corrective_round_sessions.py::test_an_evaluation_session_ends_between_cells_at_the_stop_file_or_its_deadline
+E11 route (ii) not handed the deadline                    KILLED    FAILED tests/test_corrective_round_sessions.py::test_route_ii_asks_the_session_before_every_episode
+E12 the CLI drops --hours                                 KILLED    FAILED tests/test_corrective_round_sessions.py::test_the_train_cli_hands_its_hours_and_max_runs_and_plan_only_trains_nothing
+E13 the train check ignores the stop file                 KILLED    FAILED tests/test_corrective_round_sessions.py::test_no_train_or_evaluate_session_passes_its_check_while_the_stop_file_exists[train]
+D1 the campaign stage not retired                         KILLED    FAILED tests/test_corrective_round_driver.py::test_every_driver_run_a_test_makes_names_a_machine_path_only_in_an_assignment
+D2 the session hours not validated                        KILLED    FAILED tests/test_corrective_round_driver.py::test_every_driver_run_a_test_makes_names_a_machine_path_only_in_an_assignment
+D3 a session starts while STOP exists                     KILLED    FAILED tests/test_corrective_round_driver.py::test_no_session_starts_while_the_stop_file_exists_and_the_driver_never_removes_it
+D4 the evaluate shards not handed the deadline            KILLED    FAILED tests/test_corrective_round_driver.py::test_an_evaluate_session_ends_between_units_at_its_deadline_or_the_stop_file
+D5 a train session not handed its hours                   KILLED    FAILED tests/test_corrective_round_driver.py::test_a_train_session_plans_trains_and_summarises_under_its_own_token
+P1 train_run changed (the device field)                   KILLED    FAILED tests/test_corrective_round_training_path.py::test_train_run_and_every_definition_it_reaches_in_corrective_round_are_the_first_trainings
+P2 a trainer's file changed (offline_baselines.py)        KILLED    FAILED tests/test_corrective_round_training_path.py::test_every_repository_file_a_real_training_executes_is_the_first_trainings
+S1 the stop file refuses every stage again (11476c0's line)KILLED    FAILED tests/test_corrective_round_driver.py::test_the_stop_file_refuses_the_train_and_evaluate_sessions_and_leaves_collect_and_d4rl_unchanged[col
+S2 the session hours validated for every stage            KILLED    FAILED tests/test_corrective_round_driver.py::test_the_session_hours_change_nothing_for_the_collect_and_d4rl_stages[collect-0]
+S3 the stop file for the train stage only                 KILLED    FAILED tests/test_corrective_round_driver.py::test_the_stop_file_refuses_the_train_and_evaluate_sessions_and_leaves_collect_and_d4rl_unchanged[eval
+every file restored, sha256 equal to the original
+
+## Earlier, on the tree committed as 11476c0: the first 22, 22 of 22 killed. Load 1.37 -> 1.41
+control (unmutated, 5 test targets): exit 0; 86 passed in 28.12s
+mutant                                                    result    evidence
+E1 the hours plan ignored                                 KILLED    FAILED tests/test_corrective_round_sessions.py::test_a_plan_is_the_next_missing_runs_that_fit_its_hours_the_first_always_included
+E2a the stop file ignored between runs                    KILLED    FAILED tests/test_corrective_round_sessions.py::test_the_stop_file_ends_the_session_after_the_run_in_flight
+E2b the stop file ignored at the start                    KILLED    FAILED tests/test_corrective_round_sessions.py::test_no_session_starts_while_the_stop_file_exists_and_the_code_never_deletes_it
+E2c the stop file ignored by the evaluation               KILLED    FAILED tests/test_corrective_round_sessions.py::test_an_evaluation_session_ends_between_cells_at_the_stop_file_or_its_deadline
+E3 a run started after the stop file (no check before the first run)KILLED    FAILED tests/test_corrective_round_sessions.py::test_a_stop_file_that_appears_while_the_session_plans_starts_no_run
+E4 a run interrupted by the stop file (train_run checks it before the move)KILLED    FAILED tests/test_corrective_round_sessions.py::test_the_stop_file_ends_the_session_after_the_run_in_flight
+E5 evaluate started with a missing run                    KILLED    FAILED tests/test_corrective_round_sessions.py::test_the_evaluate_stage_refuses_while_any_training_run_is_missing
+E6 a second declaration that differs accepted             KILLED    FAILED tests/test_corrective_round_stages.py::test_declare_evaluation_refuses_a_manifest_that_declares_another_cell_set
+E7 max_runs ignored                                       KILLED    FAILED tests/test_corrective_round_sessions.py::test_a_plan_is_the_next_missing_runs_that_fit_its_hours_the_first_always_included
+E8 the first run not always included                      KILLED    FAILED tests/test_corrective_round_sessions.py::test_a_plan_is_the_next_missing_runs_that_fit_its_hours_the_first_always_included
+E9 P8.4b's runner never asks                              KILLED    FAILED tests/test_att_rederivation_should_stop.py::test_a_true_ends_the_campaign_between_episodes_and_the_next_call_resumes_from_disk
+E10 evaluate's per-cell question dropped                  KILLED    FAILED tests/test_corrective_round_sessions.py::test_an_evaluation_session_ends_between_cells_at_the_stop_file_or_its_deadline
+E11 route (ii) not handed the deadline                    KILLED    FAILED tests/test_corrective_round_sessions.py::test_route_ii_asks_the_session_before_every_episode
+E12 the CLI drops --hours                                 KILLED    FAILED tests/test_corrective_round_sessions.py::test_the_train_cli_hands_its_hours_and_max_runs_and_plan_only_trains_nothing
+E13 the train check ignores the stop file                 KILLED    FAILED tests/test_corrective_round_sessions.py::test_no_train_or_evaluate_session_passes_its_check_while_the_stop_file_exists[train]
+D1 the campaign stage not retired                         KILLED    FAILED tests/test_corrective_round_driver.py::test_every_driver_run_a_test_makes_names_a_machine_path_only_in_an_assignment
+D2 the session hours not validated                        KILLED    FAILED tests/test_corrective_round_driver.py::test_every_driver_run_a_test_makes_names_a_machine_path_only_in_an_assignment
+D3 a session starts while STOP exists                     KILLED    FAILED tests/test_corrective_round_driver.py::test_no_session_starts_while_the_stop_file_exists_and_the_driver_never_removes_it
+D4 the evaluate shards not handed the deadline            KILLED    FAILED tests/test_corrective_round_driver.py::test_an_evaluate_session_ends_between_units_at_its_deadline_or_the_stop_file
+D5 a train session not handed its hours                   KILLED    FAILED tests/test_corrective_round_driver.py::test_a_train_session_plans_trains_and_summarises_under_its_own_token
+P1 train_run changed (the device field)                   KILLED    FAILED tests/test_corrective_round_training_path.py::test_train_run_and_every_definition_it_reaches_in_corrective_round_are_the_first_tra
+P2 a trainer's file changed (offline_baselines.py)        KILLED    FAILED tests/test_corrective_round_training_path.py::test_every_repository_file_a_real_training_executes_is_the_first_trainings
+every file restored, sha256 equal to the original

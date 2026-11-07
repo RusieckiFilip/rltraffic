@@ -1,0 +1,48 @@
+"""G4: three details for the packet, from the committed artifacts. (1) The 40,000-step DT - BC interval on mappo1000,
+recomputed independently with numpy from the budget artifact's per-episode records (per draw the mean over the five
+seeds, then mean +- 1.96 sd / sqrt(n), ddof 1), beside the artifact's 100k block. (2) The D4RL contrasts' means.
+(3) A27(b)'s statements on mappo1000, original and rescored.
+
+Usage: python -P for_the_paper_2.py REPO
+"""
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+
+DATA = Path(sys.argv[1]) / "docs" / "data"
+b = json.loads((DATA / "p9_1_budget.json").read_text(encoding="utf-8"))
+
+
+def per_draw(rows, definition):
+    by_draw = {}
+    for r in rows:
+        by_draw.setdefault(int(r["draw_id"]), []).append(float(r[definition]))
+    assert all(len(v) == 5 for v in by_draw.values()), "five seeds per draw"
+    return {d: float(np.mean(v)) for d, v in sorted(by_draw.items())}
+
+
+for tier, (left, right) in {"mappo1000": ("p4_4:madt", "p4_4:bc"), "mix50": ("p4_7:dt@mix50", "p4_7:bc@mix50")}.items():
+    for definition in ("att_engine", "att_ours"):
+        lv, rv = per_draw(b["records"][left], definition), per_draw(b["records"][right], definition)
+        diff = np.array([lv[d] - rv[d] for d in lv])
+        mean, half = diff.mean(), 1.96 * diff.std(ddof=1) / np.sqrt(len(diff))
+        print(f"(1) {tier} 40k {left} - {right}, {definition}: {mean:+.4f} [{mean - half:+.4f}, {mean + half:+.4f}] "
+              f"(n = {len(diff)} draws)")
+pair = next(p for p in b["tiers"]["mappo1000"]["concordance"]["att_engine"]["pairs"]
+            if (p.get("left_arm"), p.get("right_arm")) == ("dt", "bc") or "dt" in str(p.get("left")) and "bc" in str(p.get("right")))
+print("(1) the artifact's dt - bc pair on mappo1000 under att_engine:",
+      {k: v for k, v in pair.items() if k in ("predicted", "outcome", "left", "right", "left_arm", "right_arm")},
+      "| at_40k:", {k: pair["at_40k"][k] for k in ("mean_difference", "ci95_low", "ci95_high") if k in pair.get("at_40k", {})})
+
+d = json.loads((DATA / "p9_1_iql_targets.json").read_text(encoding="utf-8"))
+for name, c in d["d4rl"]["comparison"]["contrasts"].items():
+    mean = c.get("mean_difference_return", c.get("mean_return_difference"))
+    print(f"(2) D4RL {name}: mean {mean} [{c['ci95_low_return']:.2f}, {c['ci95_high_return']:.2f}] keys {sorted(c)[:12]}")
+
+e = json.loads((DATA / "p9_1_exposure_parity.json").read_text(encoding="utf-8"))
+for s in e["rescore"]["statements"]:
+    if s["tier"] == "mappo1000":
+        print(f"(3) {s['id']:5s} {s['definition']:10s} {s['kind']:8s} arm={s['arm']}: original {s['original_verdict']!s:14s} -> "
+              f"moved={s['moved']} reading_changed={s['reading_changed']} | {str(s['reading'])[:110]}")

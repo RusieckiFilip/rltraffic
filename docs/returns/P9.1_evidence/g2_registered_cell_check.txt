@@ -1,0 +1,12 @@
+# G2: the registered cell (P4.6 iql@maxpressure) checked by a second route -- read straight from the files, not through the module
+## route (i)'s cell file against docs/data/p4_6_grid.json
+episodes 500 500 same keys True
+att_horizon differing: 0
+horizon_vehicle_count differing: 0
+episode_reward differing: 0
+cell mean: committed 158.8801478885857 route (i) 158.8801478885857
+## route (ii)'s 500 per-episode files against docs/data/p4_6_grid.json
+files 500 keys == committed True
+att_ours == committed on 500 of 500
+reproduces_committed true on 500 ; refused files: 0
+mean att_engine (route (ii), informational) 155.51180680624574

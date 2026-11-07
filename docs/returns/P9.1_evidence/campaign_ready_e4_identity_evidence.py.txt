@@ -1,0 +1,64 @@
+"""BRIEF_46 Amendment E, E.4-4: names the functions the training-path identity test compares, and how."""
+import dataclasses
+import sys
+from collections import defaultdict
+from pathlib import Path
+
+REPO = Path(sys.argv[1])
+sys.path.insert(0, str(REPO))
+import pytest  # noqa: E402
+import torch  # noqa: E402
+
+import offline.corrective_round as cr  # noqa: E402
+import offline.tier_sweep as ts  # noqa: E402
+from tests.test_corrective_round_train import _cell, _grid_fixture, _hz1x1_fixture, _two_steps  # noqa: E402
+from tests.test_corrective_round_training_path import (FIRST_TRAINING_COMMIT, STATIC_ROOTS, _at_commit,  # noqa: E402
+                                                       _closure)
+from tests.test_tier_sweep import _tiny_joint_setup  # noqa: E402
+
+head = _closure((REPO / "offline/corrective_round.py").read_text(encoding="utf-8"), STATIC_ROOTS)
+first = _closure(_at_commit("offline/corrective_round.py").decode("utf-8"), STATIC_ROOTS)
+print(f"STATIC, offline/corrective_round.py, roots {list(STATIC_ROOTS)}: {len(head)} definitions in the closure; "
+      f"the same names at {FIRST_TRAINING_COMMIT}: {sorted(head) == sorted(first)}; "
+      f"identical source: {sum(head[n] == first.get(n) for n in head)} of {len(head)}")
+print("  " + ", ".join(sorted(head)))
+
+called: dict[str, set[str]] = defaultdict(set)
+
+
+def profile(frame, event, arg):
+    if event == "call":
+        path = Path(frame.f_code.co_filename).resolve()
+        if path.is_file() and path.is_relative_to(REPO.resolve()) and path.relative_to(REPO.resolve()).parts[0] != "tests":
+            called[path.relative_to(REPO.resolve()).as_posix()].add(frame.f_code.co_qualname)
+
+
+tmp = Path(sys.argv[2])
+(tmp / "hz").mkdir(parents=True)
+(tmp / "grid").mkdir(parents=True)
+with pytest.MonkeyPatch.context() as mp:
+    hz = _hz1x1_fixture(tmp / "hz", mp)
+    _two_steps(mp, "hz1x1", "iql_t", "dt", "bc")
+    iql = _cell("hz1x1", "maxpressure", "iql_t")
+    grid_roots = _grid_fixture(tmp / "grid", mp)
+    _two_steps(mp, "grid4x4", "bc_m", "iql_m")
+    setup = _tiny_joint_setup()
+    sys.setprofile(profile)
+    try:
+        cr.train(hz, cells=[iql, dataclasses.replace(iql, arm="dt"), dataclasses.replace(iql, arm="bc")], device="cpu",
+                 seeds=(101,))
+        cr.train(grid_roots, cells=[_cell("grid4x4", "random", "bc_m"), _cell("grid4x4", "random", "iql_m")],
+                 device="cpu", seeds=(101,))
+        ts.train_tier_dt(setup["stacked"], setup["index"], tier="random_fresh", method="dt_nomix", seed=101,
+                         adjacency=setup["adjacency"], prompts=setup["prompts"], stats=setup["stats"],
+                         state_dim=setup["state_dim"], n_actions=setup["n_actions"], gradient_steps=2, batch_size=2,
+                         device=torch.device("cpu"), checkpoint_path=tmp / "dt.pt", protected=(), provenance={})
+    finally:
+        sys.setprofile(None)
+print(f"\nDYNAMIC: a real two-step training through every trainer branch; {len(called)} repository files executed, "
+      f"{sum(len(v) for v in called.values())} distinct functions")
+for name in sorted(called):
+    same = _at_commit(name) == (REPO / name).read_bytes()
+    verdict = ("byte-identical to " + FIRST_TRAINING_COMMIT) if same else "DIFFERS (corrective_round: compared statically)"
+    print(f"  {name}: {len(called[name])} functions, {verdict}")
+    print("    " + ", ".join(sorted(called[name])))

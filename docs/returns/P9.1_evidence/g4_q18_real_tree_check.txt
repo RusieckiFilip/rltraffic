@@ -1,0 +1,15 @@
+# G.2 and Q18 on the REAL tree, read-only, with the code at 8ab9761 (counts only; nothing written under output/).
+sessions in the captures: 12: collect 20261016T140119Z at 140149e, campaign 20261028T151149Z at cb61ee7, d4rl 20261028T192029Z at cb61ee7, train 20261029T154931Z at c58afb8, train 20261029T220237Z at c58afb8, train 20261030T114038Z at c58afb8, train 20261031T095739Z at c58afb8, train 20261102T131153Z at c58afb8, train 20261103T102301Z at c58afb8, train 20261103T152830Z at c58afb8, train 20261104T150356Z at c58afb8, evaluate 20261105T101034Z at c58afb8
+runs attributed, by session (no refusal):
+  campaign 20261028T151149Z at cb61ee7 from /home/filip/rltraffic-p91-run-c: 3 runs, #1-#3
+  train 20261029T154931Z at c58afb8 from /home/filip/rltraffic-p91-run-d: 62 runs, #4-#65
+  train 20261029T220237Z at c58afb8 from /home/filip/rltraffic-p91-run-d: 60 runs, #66-#125
+  train 20261030T114038Z at c58afb8 from /home/filip/rltraffic-p91-run-d: 29 runs, #126-#154
+  train 20261031T095739Z at c58afb8 from /home/filip/rltraffic-p91-run-d: 33 runs, #155-#187
+  train 20261102T131153Z at c58afb8 from /home/filip/rltraffic-p91-run-d: 24 runs, #188-#211
+  train 20261103T102301Z at c58afb8 from /home/filip/rltraffic-p91-run-d: 14 runs, #212-#225
+  train 20261103T152830Z at c58afb8 from /home/filip/rltraffic-p91-run-d: 10 runs, #226-#235
+  train 20261104T150356Z at c58afb8 from /home/filip/rltraffic-p91-run-d: 20 runs, #236-#255
+total: 255
+iql_diagnostics: traffic iql_t rows 70 | by scenario {'hz1x1': 50, 'grid4x4': 20} | D4RL rows {'iql': 5, 'iql_t': 5} | registered sha256 matches compare_with: True (else refused)
+serialises with allow_nan=False: True

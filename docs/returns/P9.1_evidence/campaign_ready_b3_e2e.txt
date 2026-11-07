@@ -1,0 +1,9 @@
+# B.3 one-off check (not a committed test): three real hz1x1 episodes of behaviour@maxpressure rolled through
+# P8.4b's route (att_rederivation.run_campaign) under offline.stall_guard.install(seconds=60, rearm_seconds=0.5) at
+# dd92a16; script: the session's b3e2e_run.py (it counts guard.progress calls)
+start 2026-10-16T15:18:54Z  17:18:54 up 1 day, 10:29,  1 user,  load average: 0.67, 0.93, 0.83
+  3/3 rolled=3 skipped=0 refused=0 0.63 s/episode
+{"keys": [["hz1x1", "behaviour@maxpressure", null, 1000], ["hz1x1", "behaviour@maxpressure", null, 1001], ["hz1x1", "behaviour@maxpressure", null, 1002]], "n_refused": 0, "files": ["cell_hz1x1_behaviour_at_maxpressure_seednone_draw1000.json", "cell_hz1x1_behaviour_at_maxpressure_seednone_draw1001.json", "cell_hz1x1_behaviour_at_maxpressure_seednone_draw1002.json"], "progress_calls": 1083, "seconds": 2.8}
+exit=0
+end 2026-10-16T15:18:58Z  17:18:58 up 1 day, 10:29,  1 user,  load average: 0.70, 0.93, 0.83
+stall file bytes: 0

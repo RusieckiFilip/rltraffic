@@ -2190,6 +2190,66 @@ def _run_train(args: Any) -> int:
     return 0
 
 
+@dataclass
+class BaselinesInputs:
+    """Everything ``train-baselines`` trains one tier's BC, %BC and IQL on, built once by :func:`baselines_inputs` --
+    for ``_run_train_baselines`` and for P9.1's campaign alike (``BRIEF_46`` 0: reuse, never copy)."""
+
+    parts: dict[str, Any]
+    dataset: Any
+    group: tuple[int, int]
+    streams: tuple[Any, ...]
+    kept_global: tuple[Any, ...]
+    kept_perix: tuple[Any, ...]
+    scale: float
+    batches: dict[str, Any]
+    provenance: dict[str, Any]
+    _table: Any = None
+
+    def table(self) -> Any:
+        """IQL's transition table on the size-matched streams only (``iql_transition_table``), built on first use."""
+        if self._table is None:
+            self._table = iql_transition_table(
+                self.dataset, group=self.group, reward_scale=self.scale, streams=self.streams
+            )
+            print(f"  transitions {len(self._table)}", flush=True)
+        return self._table
+
+
+def baselines_inputs(tier: str, corpus_root: str | Path, *, sim_config: str | Path | None = None) -> BaselinesInputs:
+    """The inputs ``_run_train_baselines`` always built, in its order and unchanged: the tier's parts, the three BC-family
+    selections over the size-matched streams, IQL's reward scale over those streams, the three windowed batches, and
+    the provenance every checkpoint carries."""
+    from offline.dt_gate import stack_dataset
+    from offline.offline_baselines import filter_stacked_to_streams, iql_reward_scale
+
+    parts = tier_parts(tier, corpus_root, sim_config=sim_config)
+    dataset = parts["dataset"]
+    group = next(iter(dataset.groups))
+    streams = parts["streams"]
+    selections = baseline_stream_selections(dataset, streams)
+    scale = iql_reward_scale([s.total_return for s in streams])
+    stacked_all = stack_dataset(dataset, group)
+    stacked = filter_stacked_to_streams(dataset, stacked_all, streams)
+    batches = {
+        "bc": stacked,
+        "bc_top10": filter_stacked_to_streams(dataset, stacked_all, selections["bc_top10"]),
+        "bc_top10_perix": filter_stacked_to_streams(
+            dataset, stacked_all, selections["bc_top10_perix"]
+        ),
+    }
+    provenance = {
+        "tier": tier,
+        "dataset_dirs": [str(d) for d in tier_dirs(parts["spec"], corpus_root)],
+        "scenario_id": SCENARIO_ID,
+        "training_streams": len(streams),
+        "independent_per_intersection": True,
+    }
+    return BaselinesInputs(parts=parts, dataset=dataset, group=group, streams=tuple(streams),
+                           kept_global=tuple(selections["bc_top10"]), kept_perix=tuple(selections["bc_top10_perix"]),
+                           scale=scale, batches=batches, provenance=provenance)
+
+
 def _run_train_baselines(args: Any) -> int:
     """BC, %BC, per-intersection %BC and IQL on one tier, on the SAME size-matched episode set.
 
@@ -2230,43 +2290,22 @@ def _run_train_baselines(args: Any) -> int:
     from offline.a27_arms import assert_declared_on_random_fresh
 
     assert_declared_on_random_fresh(A27_SCENARIO, tier, [recipe.name for _, recipe in plan])
-    parts = tier_parts(tier, args.corpus_root, sim_config=args.sim_config)
-    dataset = parts["dataset"]
-    group = next(iter(dataset.groups))
-    streams = parts["streams"]
-    selections = baseline_stream_selections(dataset, streams)
-    kept_global = selections["bc_top10"]
-    kept_perix = selections["bc_top10_perix"]
-    scale = iql_reward_scale([s.total_return for s in streams])
-    stacked_all = stack_dataset(dataset, group)
-    stacked = filter_stacked_to_streams(dataset, stacked_all, streams)
-    batches = {
-        "bc": stacked,
-        "bc_top10": filter_stacked_to_streams(dataset, stacked_all, selections["bc_top10"]),
-        "bc_top10_perix": filter_stacked_to_streams(
-            dataset, stacked_all, selections["bc_top10_perix"]
-        ),
-    }
+    inputs = baselines_inputs(tier, args.corpus_root, sim_config=args.sim_config)
+    dataset, group, streams, scale = inputs.dataset, inputs.group, inputs.streams, inputs.scale
+    kept_global, kept_perix, batches = inputs.kept_global, inputs.kept_perix, inputs.batches
     device = torch.device(
         args.device if args.device else ("cuda" if torch.cuda.is_available() else "cpu")
     )
     checkpoints = Path(args.checkpoint_dir)
     assert_writable(checkpoints, protected)
     checkpoints.mkdir(parents=True, exist_ok=True)
-    provenance = {
-        "tier": tier,
-        "dataset_dirs": [str(d) for d in tier_dirs(parts["spec"], args.corpus_root)],
-        "scenario_id": SCENARIO_ID,
-        "training_streams": len(streams),
-        "independent_per_intersection": True,
-    }
+    provenance = inputs.provenance
     print(
         f"baselines @{tier}: {len(streams)} streams, global decile {len(kept_global)}, "
         f"per-intersection decile {len(kept_perix)}, iql reward scale {scale}, device {device}",
         flush=True,
     )
     records: list[dict[str, Any]] = []
-    table = None
     for method, recipe in plan:
         a27_fields = (
             {"arm": recipe.name, "base_method": recipe.base, "target_dropout": recipe.target_dropout,
@@ -2284,13 +2323,8 @@ def _run_train_baselines(args: Any) -> int:
             partial.unlink(missing_ok=True)
             print(f"TRAIN {tier}/{recipe.name} seed {seed} -> {path}", flush=True)
             if method == "iql":
-                if table is None:
-                    table = iql_transition_table(
-                        dataset, group=group, reward_scale=scale, streams=streams
-                    )
-                    print(f"  transitions {len(table)}", flush=True)
                 result = train_iql(
-                    table, state_dim=group[0], n_actions=group[1], seed=int(seed),
+                    inputs.table(), state_dim=group[0], n_actions=group[1], seed=int(seed),
                     declared_gradient_steps=int(args.gradient_steps),
                     batch_size=recipe.batch, device=device, checkpoint_path=partial,
                     stats=dataset.stats, scenario_id=SCENARIO_ID,

@@ -1,0 +1,20 @@
+# Q19 and Q20: mutants run one at a time by mutate.py against a passing control (PYTHONDONTWRITEBYTECODE=1, every
+# file restored and sha256-checked); CPU only, one thread, roots set. Sites: g4_q19_q20_mutants.json. On the tree
+# committed as 9bda19f; load 0.71 -> 1.03.
+control (unmutated, 3 test targets): exit 0; 50 passed in 74.22s (0:01:14)
+mutant                                                    result    evidence
+F1 the family is iql_t alone (Q18's set)                  KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_every_iql_family_run_gives_its_arm_target_mode_and_three_values_in_run_order
+F2 the target mode not compared with the recipe's         KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_a_run_record_without_its_finite_values_or_its_recipes_target_mode_is_refused[damage6-targe
+F3 a block without its target mode accepted               KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_a_run_record_without_its_finite_values_or_its_recipes_target_mode_is_refused[damage5-has n
+F4 = C3: the identity check without the tier              KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_a_record_that_is_not_its_runs_is_refused[tier-fixedtime]
+F5 = C4: only NaN refused, an infinite value accepted     KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_a_run_record_without_its_finite_values_or_its_recipes_target_mode_is_refused[damage3-final
+F6 the traffic part keeps Q18's key                       KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_the_block_is_labelled_diagnostics_and_defines_its_three_fields
+V1 (S.2) evaluate sessions naming two commits accepted    KILLED    FAILED tests/test_corrective_report_sessions.py::test_evaluate_sessions_that_name_two_commits_or_two_run_trees_are_refused[0a1b2c3-/trees/run-d]
+V2 evaluate sessions naming two run trees accepted        KILLED    FAILED tests/test_corrective_report_sessions.py::test_evaluate_sessions_that_name_two_commits_or_two_run_trees_are_refused[c58afb8-/trees/run-e]
+V3 (S.2) the evaluation's commit taken from a route (i) runtime fieldKILLED    FAILED tests/test_corrective_report_fixture_tree.py::test_every_artifact_names_the_sessions_and_the_evaluations_commit_never_a_route_i_r
+V4 a stage without a session accepted                     KILLED    FAILED tests/test_corrective_report_sessions.py::test_a_stage_with_no_session_in_the_captures_is_refused
+V5 the D4RL session not named beside its section          KILLED    FAILED tests/test_corrective_report_fixture_tree.py::test_every_artifact_names_the_sessions_and_the_evaluations_commit_never_a_route_i_runtime_comm
+V6 the artifacts carry no sessions                        KILLED    FAILED tests/test_corrective_report_fixture_tree.py::test_every_artifact_names_the_sessions_and_the_evaluations_commit_never_a_route_i_runtime_comm
+V7 the evaluation's commit read from the training sessionsKILLED    FAILED tests/test_corrective_report_fixture_tree.py::test_every_artifact_names_the_sessions_and_the_evaluations_commit_never_a_route_i_runtime_comm
+V8 the D4RL session read from the campaign stage's        KILLED    FAILED tests/test_corrective_report_fixture_tree.py::test_every_artifact_names_the_sessions_and_the_evaluations_commit_never_a_route_i_runtime_comm
+every file restored, sha256 equal to the original

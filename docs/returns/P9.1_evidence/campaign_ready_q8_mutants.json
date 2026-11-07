@@ -1,0 +1,137 @@
+[
+ {
+  "name": "Q8-01 old-cell list drops behaviour@fixedtime",
+  "file": "offline/corrective_round.py",
+  "old": "    *((\"docs/data/p4_6_grid.json\", f\"behaviour@{tier}\") for tier in (\"mappo1000\", \"mappo500\", \"maxpressure\", \"fixedtime\")),",
+  "new": "    *((\"docs/data/p4_6_grid.json\", f\"behaviour@{tier}\") for tier in (\"mappo1000\", \"mappo500\", \"maxpressure\")),",
+  "tests": [
+   "tests/test_corrective_round_data.py"
+  ]
+ },
+ {
+  "name": "Q8-02 P1 reads att_ours under both definitions",
+  "file": "offline/corrective_verdicts.py",
+  "old": "for episode in _episodes(cell, definition)])",
+  "new": "for episode in _episodes(cell, \"att_ours\")])",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "Q8-03 the comparison's sides swapped",
+  "file": "offline/corrective_verdicts.py",
+  "old": "ob.paired_comparison(side(left, definition, left_label), side(right, definition, right_label))",
+  "new": "ob.paired_comparison(side(right, definition, right_label), side(left, definition, left_label))",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "Q8-04 a seedless row's seed cast to int",
+  "file": "offline/corrective_verdicts.py",
+  "old": "seed=None if row[\"seed\"] is None else int(row[\"seed\"])",
+  "new": "seed=int(row[\"seed\"])",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "Q8-05 constructed rows' att_engine from the expert always",
+  "file": "offline/corrective_verdicts.py",
+  "old": "        built.append({**source, \"arm\": arm})",
+  "new": "        built.append({**rows[CONSTRUCTED_REFERENCE_ARMS[0]][(int(record[\"seed\"]), int(record[\"draw_id\"]))], \"att_ours\": source[\"att_ours\"], \"arm\": arm})",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "Q8-06 P1 never moves",
+  "file": "offline/corrective_verdicts.py",
+  "old": "\"moved\": {d: before[d][\"outcome\"] != after[d][\"outcome\"] for d in DEFINITIONS},",
+  "new": "\"moved\": {d: False for d in DEFINITIONS},",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "Q8-07 P1 episodes keep their rows' arm (no slot label)",
+  "file": "offline/corrective_verdicts.py",
+  "old": "cell_stats([replace(episode, arm=f\"{method}@{tier}\")\n                                                             for episode in _episodes(cell, definition)])",
+  "new": "cell_stats([episode\n                                                             for episode in _episodes(cell, definition)])",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "Q8-08 report: P4.6's mappo1000 comparison reads P4.4's behaviour cell",
+  "file": "offline/corrective_report.py",
+  "old": "\"behaviour\": constructed_id(tier) if task == \"p4_7\" else f\"p4_6:behaviour@{tier}\",",
+  "new": "\"behaviour\": constructed_id(tier) if task == \"p4_7\" else (\"p4_4:mappo1000\" if tier == \"mappo1000\" else f\"p4_6:behaviour@{tier}\"),",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "Q8-09 report: P1's reproduction check removed",
+  "file": "offline/corrective_report.py",
+  "old": "    if block[\"original\"][\"att_ours\"] != src.registered[\"p1_committed\"][name]:",
+  "new": "    if False:",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "Q8-10 report: the comparisons' reproduction check removed",
+  "file": "offline/corrective_report.py",
+  "old": "        if original[\"att_ours\"] != committed[key]:",
+  "new": "        if False:",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "Q8-11 report: re-score reads the old IQL",
+  "file": "offline/corrective_report.py",
+  "old": "        rescored = cv.paired_both(*(src.cells[c] for c in ordered(new)), serializer=pair[\"serializer\"])",
+  "new": "        rescored = cv.paired_both(*(src.cells[c] for c in ordered(pair[\"iql\"])), serializer=pair[\"serializer\"])",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "Q8-12 report: P1 re-score without the substitution",
+  "file": "offline/corrective_report.py",
+  "old": "    rescored = {tier: {**original[tier], \"iql\": src.cells[f\"p9_1:hz1x1:iql_t@{tier}\"]} for tier in tiers}",
+  "new": "    rescored = {tier: dict(original[tier]) for tier in tiers}",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "Q8-13 report: the re-roll determinism check ignores att_engine",
+  "file": "offline/corrective_report.py",
+  "old": "    fields = [key for key in EPISODE_FIELDS if key not in (\"arm\", \"source\")]",
+  "new": "    fields = [key for key in EPISODE_FIELDS if key not in (\"arm\", \"source\", \"att_engine\")]",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "Q8-14 report: the constructed reference's P4.7 join removed",
+  "file": "offline/corrective_report.py",
+  "old": "    if built != committed:\n        differing",
+  "new": "    if False:\n        differing",
+  "tests": [
+   "tests/test_corrective_report_load.py"
+  ]
+ },
+ {
+  "name": "Q8-15 report: P4.4's comparison with behaviour on the right",
+  "file": "offline/corrective_report.py",
+  "old": "\"behaviour\": \"p4_4:mappo1000\", \"behaviour_left\": True,",
+  "new": "\"behaviour\": \"p4_4:mappo1000\", \"behaviour_left\": False,",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ }
+]

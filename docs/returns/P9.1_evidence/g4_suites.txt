@@ -1,0 +1,15 @@
+# S.4 step 3: the whole suite at 9bda19f in CI's setting -- one process, OMP_NUM_THREADS=1 MKL_NUM_THREADS=1, CPU only
+# (CUDA_VISIBLE_DEVICES empty), no RLTRAFFIC_* variable; HEAD held, no tracked change. The three failures are the
+# tmux tests the sandbox refuses ('error connecting to /tmp/tmux-1000/default (Operation not permitted)'), as in F.1 and S.1.
+HEAD 9bda19f; tracked changes: 0; RLTRAFFIC vars: 0; start 2026-11-06 20:27:05  20:27:05 up 5 days, 18:53,  1 user,  load average: 0.93, 0.92, 0.75
+FAILED tests/test_p7_3c_campaign.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_p7_3c_corpus_driver.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_p7_3d_campaign_path.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+3 failed, 3995 passed, 276 skipped, 32 warnings in 1021.45s (0:17:01)
+pytest exit=1
+end 2026-11-06 20:44:08  20:44:08 up 5 days, 19:10,  1 user,  load average: 0.64, 0.89, 0.91; HEAD 9bda19f
+
+# S.4 step 3: the report's test files with the roots set (RLTRAFFIC_OUTPUT_ROOT, RLTRAFFIC_CORPUS_V11, RLTRAFFIC_DRAWS);
+# CPU only, one thread; load 0.53 -> 0.98. The 5 skips are the T-regress, which needs the committed artifacts (step 6).
+SKIPPED [5] tests/test_corrective_report_load.py:203: T-regress needs the committed P9.1 artifacts and the campaign's run directories (RLTRAFFIC_OUTPUT_ROOT, RLTRAFFIC_CORPUS_V11, RLTRAFFIC_D4RL_OUT)
+137 passed, 5 skipped in 76.74s (0:01:16)

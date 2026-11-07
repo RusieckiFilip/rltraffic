@@ -1,0 +1,11 @@
+mutant                                           result    evidence
+B3-01 driver restarts on any exit 1 (no banner check) KILLED    FAILED tests/test_corrective_round_driver.py::test_a_failing_worker_is_not_restarted[raise-1]
+B3-02 driver never restarts                      KILLED    FAILED tests/test_corrective_round_driver.py::test_a_worker_blocked_in_a_c_level_wait_is_restarted_and_completes
+B3-03 driver cap off by one                      KILLED    FAILED tests/test_corrective_round_driver.py::test_a_worker_that_stalls_past_the_cap_stops_the_stage
+B3-04 P3a's references not under the restart loop KILLED    FAILED tests/test_corrective_round_driver.py::test_every_worker_that_rolls_cityflow_episodes_runs_under_the_restart_loop_and_nothing_else_do
+B3-05 progress never re-arms                     KILLED    FAILED tests/test_stall_guard.py::test_progress_keeps_a_healthy_worker_alive_past_its_window
+B3-06 re-arm throttle strict                     KILLED    FAILED tests/test_stall_guard.py::test_the_guard_arms_on_construction_and_re_arms_at_most_once_per_interval
+B3-07 wrapped methods skip the progress report   KILLED    FAILED tests/test_stall_guard.py::test_wrapped_methods_report_progress_then_run_unchanged_and_are_restored_exactly
+B3-08 restore leaves an inherited method on the class KILLED    FAILED tests/test_stall_guard.py::test_wrapped_methods_report_progress_then_run_unchanged_and_are_restored_exactly
+B3-09 the CLI never installs the guard           KILLED    FAILED tests/test_stall_guard.py::test_the_three_rolling_subcommands_arm_the_guard_before_they_roll[command0]
+B3-10 the timer dumps but does not end the worker KILLED    FAILED tests/test_stall_guard.py::test_a_worker_blocked_in_c_holding_the_gil_dumps_its_stack_with_the_banner_and_exits_1

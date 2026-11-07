@@ -360,13 +360,46 @@ def test_the_committed_p_values_all_still_reproduce_exactly() -> None:
     #   .statements[*].numbers.contrast.paired_comparison.wilcoxon                         10
     # Nothing else in this test changes: the walk, ONE_SIDED_PAIRS, _expected_p_value and the `moved == []`
     # assertion are untouched, so all 487 are still recomputed and compared under == (B.2.2(2)).
-    assert len(pairs) == 487, (
-        f"expected the 487 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 "
+    #
+    # 487 -> 771 on 2026-11-06, AUTHORISED IN WRITING (BRIEF_46 Amendment T, T.3), quoted verbatim:
+    # "test_erfc_determinism 487 -> 771 AUTHORISED (BRIEF_46 Amendment T, T.3, 2026-11-06), same footing as BRIEF_29
+    # section 1 B, the 2026-09-10 authorisation, BRIEF_42 Amendment E.1 and BRIEF_45 Amendment B.2. The 284 are P9.1's
+    # two-sided Wilcoxon blocks in its five A27 artifacts (docs/data/p9_1_*.json, committed at c0daeb7), enumerated by
+    # the guard's own paths: p9_1_random_fresh.json 122, p9_1_iql_targets.json 74, p9_1_budget.json 64,
+    # p9_1_mixture.json 16 and p9_1_exposure_parity.json 8. None carries an alternative key, so ONE_SIDED_PAIRS is
+    # unchanged; none has n_used = 0; all 771 reproduce under == through _expected_p_value (the coordinator's run of the
+    # guard's own walk at d3cd0c3)."
+    # The 284, by the guard's own path classes ({d} is {att_engine,att_ours}; folded by their braces):
+    #    80  p9_1_random_fresh.json.collapse.{hz1x1,grid4x4}.{original_random_tier,random_fresh_tier}.rows[*]
+    #          .by_definition.{d}.paired_comparison.wilcoxon
+    #    32  p9_1_random_fresh.json.q6_both_anchors.{random_fresh,registered_five_schedule}[*].numbers
+    #          .paired_comparison.wilcoxon
+    #    10  p9_1_random_fresh.json.p3b.contrasts[*].by_definition.{d}.paired_comparison.wilcoxon
+    #    36  p9_1_iql_targets.json.iql_behaviour_comparisons.comparisons[*].{original,rescored}.{d}.wilcoxon
+    #    16  p9_1_iql_targets.json.hz1x1.tiers[*].by_definition.{d}.paired_comparison.wilcoxon
+    #     8  p9_1_iql_targets.json.grid4x4.tiers[*].by_definition.{d}.paired_comparison.wilcoxon
+    #     8  p9_1_iql_targets.json.grid4x4_exposure_against_dropout.tiers[*].by_definition.{d}.paired_comparison
+    #          .wilcoxon
+    #     4  p9_1_iql_targets.json.hz1x1_iql_lead_on_random[*].by_definition.{d}.paired_comparison.wilcoxon
+    #     2  p9_1_iql_targets.json.grid4x4_original_random_beside.by_definition.{d}.paired_comparison.wilcoxon
+    #    48  p9_1_budget.json.tiers.{mappo1000,mix50}.concordance.{d}.pairs[*].{at_40k,at_100k}.paired_comparison
+    #          .wilcoxon
+    #    16  p9_1_budget.json.tiers.{mappo1000,mix50}.differences[*].by_definition.{d}.paired_comparison.wilcoxon
+    #     8  p9_1_mixture.json.predictions.orderings.contrasts[*].by_definition.{d}.paired_comparison.wilcoxon
+    #     6  p9_1_mixture.json.predictions.within_5_s.arms[*].by_definition.{d}.paired_comparison.wilcoxon
+    #     2  p9_1_mixture.json.beside.iql_t_within_5_s.arms[*].by_definition.{d}.paired_comparison.wilcoxon
+    #     8  p9_1_exposure_parity.json.sentence_contrasts.{original,matched}[*].by_definition.{d}.paired_comparison
+    #          .wilcoxon
+    # Nothing else in this test changes: the walk, ONE_SIDED_PAIRS, _expected_p_value and the `moved == []`
+    # assertion are untouched, so all 771 are still recomputed and compared under == (T.3).
+    assert len(pairs) == 771, (
+        f"expected the 771 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 "
         f"P5.3a copies out of p4_6_grid.json / p4_7_grid.json (BRIEF_29 section 1 B), plus the 9 "
         f"P5.3b wilcoxon blocks in p5_3b_nortg.json (authorised 2026-09-10), plus the 12 P5.3c one-sided "
         f"tests in p5_3c_context_sweep.json (BRIEF_42 Amendment E.1, authorised 2026-10-02), plus the 136 "
-        f"P5.2c Wilcoxon blocks in p5_2_statements.json (BRIEF_45 Amendment B.2, authorised 2026-10-13) -- found "
-        f"{len(pairs)}; if artifacts were added, re-measure and update this count deliberately"
+        f"P5.2c Wilcoxon blocks in p5_2_statements.json (BRIEF_45 Amendment B.2, authorised 2026-10-13), plus the 284 "
+        f"P9.1 two-sided Wilcoxon blocks in docs/data/p9_1_*.json (BRIEF_46 Amendment T, T.3, authorised 2026-11-06) "
+        f"-- found {len(pairs)}; if artifacts were added, re-measure and update this count deliberately"
     )
 
     # E.1.2(4): path AND alternative compared, so a key added to an existing two-sided pair, or a test relabelled,

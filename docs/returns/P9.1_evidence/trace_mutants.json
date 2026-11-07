@@ -1,0 +1,57 @@
+[
+ {
+  "name": "S1 gap threshold inverted",
+  "file": "offline/corrective_report.py",
+  "old": "            if after - before > threshold:",
+  "new": "            if after - before < threshold:",
+  "tests": [
+   "tests/test_corrective_report_load.py",
+   "tests/test_corrective_round_train.py::test_a_runs_record_brackets_its_training_with_unix_times",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "S2 overlap ignores the run's start",
+  "file": "offline/corrective_report.py",
+  "old": "        paused = [dict(gap) for gap in gaps if gap[\"from_unix\"] < end and gap[\"to_unix\"] > start]",
+  "new": "        paused = [dict(gap) for gap in gaps if gap[\"from_unix\"] < end]",
+  "tests": [
+   "tests/test_corrective_report_load.py",
+   "tests/test_corrective_round_train.py::test_a_runs_record_brackets_its_training_with_unix_times",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "S3 coverage always true",
+  "file": "offline/corrective_report.py",
+  "old": "        covered = any(first <= start and end <= last for first, last in spans)",
+  "new": "        covered = True",
+  "tests": [
+   "tests/test_corrective_report_load.py",
+   "tests/test_corrective_round_train.py::test_a_runs_record_brackets_its_training_with_unix_times",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "S4 started after the trainer",
+  "file": "offline/corrective_round.py",
+  "old": "    started_unix = time.time()\n    if cell.scenario == \"hz1x1\":",
+  "new": "    if cell.scenario == \"hz1x1\":",
+  "tests": [
+   "tests/test_corrective_report_load.py",
+   "tests/test_corrective_round_train.py::test_a_runs_record_brackets_its_training_with_unix_times",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "S5 trace started after training",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "    start_trace\n    run_logged train cr train",
+  "new": "    run_logged train cr train\n    start_trace",
+  "tests": [
+   "tests/test_corrective_report_load.py",
+   "tests/test_corrective_round_train.py::test_a_runs_record_brackets_its_training_with_unix_times",
+   "tests/test_corrective_round_driver.py"
+  ]
+ }
+]

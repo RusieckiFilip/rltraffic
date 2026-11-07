@@ -1528,3 +1528,125 @@ for block in blocks:
 3. Then nothing until the amendment that clears `old-cells` after P9.1's merge (J.9's last list). Do not run `old-cells` or
    `report`.
 4. Test runs beside P9.1's T7: one pytest process at a time, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1` (`BRIEF_46` L.3).
+
+## J.11 2026-11-04: your J.10 work VERIFIED at `12ebfcb`; nothing more until P9.1's merge
+**Verified by the coordinator, from the repository's objects (your worktree untouched):**
+- **Two commits since `cb6a942`, each touching only what it says:**
+  - `debe66b` merges `main` at `dc99753`: the plan, `BRIEF_46` and `BRIEF_48`, each equal to `main`'s, and nothing else;
+  - `12ebfcb` changes `docs/returns/P9.3.md` only (+38 and −12 lines).
+
+  `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` still have `4dcbedc`'s bytes. No frozen path is in the branch's diff,
+  and neither commit carries an AI trailer.
+- **The three corrections are made as J.10 asked.** The coordinator read the diff with every digit masked, then checked the counts
+  and the section references by phrase:
+  1. **The preview** was shown to the author the same day, in your own chat. The coordinator has not seen it, and its rulings up to
+     G4 are made without it. The two files are named by their pinned sha256, and G4 compares the artifact with that output and no
+     other, at its printed precision.
+  2. **The AI-assistance record** lists the coordinator as an AI session (Claude Code), and `BRIEF_48` and its amendments as
+     AI-authored by it. The human part is the author's rulings and the runs the author ran. The coordinator's checks are listed
+     apart, as an AI session's verification, and Amendment C (k = 2) appears once, among the author's rulings.
+  3. **J.8's counts** are written: one run of 8 shards, 0 watchdog restarts, and A7's stall met at 14 shards with 8 set (J.4).
+- **Your correction beyond the three is right.** In J.9, "`old-cells` waits for P9.1" is the author's ruling, and only the map of
+  the 18 counterparts is the coordinator's. The coordinator checked every attribution in the two lists against this brief:
+  - **the author's:** E.1 (point 8 resumed), H.6 (no hard stop, D8; training in sessions), I.6's later rulings and I.7 (machine
+    B's method and gate, and one continuous run there), J.1 (the evaluation's order) and J.9's ruling;
+  - **the coordinator's:** A.3, B.3 with E.3.2, G.2, H.2, I.3, I.6's move to machine B, and J.9's map.
+- **No result number is in the packet.** Every new digit is a section reference, a date, a sha256 prefix, one of J.8's counts,
+  k = 2 or point 8.
+- **Unchanged since J.10:**
+  - both preview files, hashed and not read: `j9_preview.py` (1,395 bytes, `b39c53fe…`) and `j9_preview_output.txt` (5,427 bytes,
+    `fa8f266b…c493c`), with J.10's times;
+  - neither artifact exists, on the branch or in your worktree, which is clean at `12ebfcb`;
+  - `output/p9_3/`: 12,828 files, 12,500 of them in `eval/`, the newest written at the evaluation's end (23:51:09 CET on
+    2026-11-01).
+
+**P9.1's training is complete** (255 of 255 runs, `BRIEF_46` Amendment N), and its evaluation comes next. Your next step is still
+the amendment that clears `old-cells` after P9.1's merge (J.9's last list). Until then, run nothing, keep the two preview files as
+they are, and do not run `old-cells` or `report`.
+
+---
+
+# ✅ AMENDMENT K — 2026-11-07, after midnight: P9.1 MERGED (`42e41d8`); `old-cells` and `report` CLEARED, once each, with P9.1's two committed artifacts as the 18 counterparts' source; then G4
+
+## K.1 What changed
+- **P9.1 merged at `42e41d8`** (`BRIEF_46` Amendments T and U). G5 passed after one fix round, which changed only a test's
+  pinned count, and its five artifacts are final at `c0daeb7`.
+  - That is J.9's "committed": on `main`, after P9.1's G5 and merge.
+  - So no fix round can change what the one old-cells artifact copies.
+- **The two artifacts J.9's map names**, pinned here by sha256 (the bytes at `c0daeb7` and on `main`):
+  - `docs/data/p9_1_exposure_parity.json` (A27(b)): `d49088c369cefabf95d58286682ddfb876d61c9218f51ea902a85de28956adf8`;
+  - `docs/data/p9_1_random_fresh.json` (A27(d)): `b49ebefd8886cdb2ca26b54ebb5097e4bf9a73711fece1a5ebcf4fbb07f8b103`.
+- **The 18 counterparts are in them by the names J.9 expected** (`p9_1:grid4x4:<arm>@<tier>`). The coordinator checked this
+  read-only, printing names and counts.
+  - `bc_m`, `bc_top10_m`, `bc_top10_perix_m` and `iql_m` on `mappo1000`, `maxpressure` and `fixedtime` are in the first.
+  - `dt_nomix`, the same four arms and `behaviour` on `random_fresh` are in the second.
+
+  Each is 500 records, and each record carries both definitions with the companions. In G5 the coordinator compared every
+  record with its raw source on disk under `==` (route (i) and route (ii), `BRIEF_46` T.1).
+- **J.9's ruling now lets `old-cells` write.** This amendment names the commit, the two files and their digests, as J.9 asked.
+
+## K.2 Your steps, in order
+Run them in your own session, with no token and nothing in the author's tmux: CPU only, one pytest process at a time with
+`OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`. Stay read-only on `output/` and the corpus, and do not `cd` into `output/`.
+1. **`git merge --no-edit main`.** It brings P9.1's merge (its code, tests, artifacts and packet), `BRIEF_46` Amendments T and
+   U, this amendment and the plan.
+   - Check that `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` still have `4dcbedc`'s bytes.
+   - Check that the two files above have the pinned sha256.
+2. **P9.1's reader in `old_cells`, tests first,** in `offline/hz4x4_report.py`. The two frozen campaign modules stay unchanged.
+   - **The source.** The 18 of `P9_1_COUNTERPARTS` are read from the two artifacts, each by J.9's map and at the repository's
+     committed bytes. The reader refuses a file whose sha256 is not the one pinned in K.1.
+   - **The copy.** Each cell is copied per episode in (seed, draw) order: every field P9.1's record carries, with the
+     artifact's path, its sha256 and the record key. Nothing is re-rolled.
+   - **Refused:**
+     - a key that is missing;
+     - a cell that is not 500 records over seeds 101–505 and draws 1000–1099;
+     - a record whose arm or tier is not its cell's.
+   - **What the report reads.** If the report reads only some of a row's fields, the docstring names them; the copy keeps
+     them all.
+   - **`pending` becomes empty.** `refuse_pending` stays as it is.
+   - **The test's new expectation** (J.9-4). `test_old_cells_copy_each_counterpart_with_its_source_and_digest_and_name_p9_1s_as_pending`
+     is renamed for it and expects:
+     - 25 copied cells: the seven with their eval files and digests, as today, and the 18 with their artifact's path and
+       sha256;
+     - each of the 18 equal to its artifact's records under `==`;
+     - `pending` empty.
+   - **Mutants, each killed:** (a) the pinned sha256 not checked; (b) a `random_fresh` cell read from the exposure-parity
+     artifact; (c) a cell short of one record accepted.
+   - Run the seven P9.3 test files and `scripts/check_test_hygiene.sh` on the changed tests, then commit.
+3. **`old-cells` once, then `report` once.** Run them from your worktree at that clean, committed tip, on the main tree's
+   `output/`.
+   - `old-cells` writes `docs/data/p9_3_old_cells.json`. `report` takes it as `--old-cells` and writes
+     `docs/data/p9_3_hz4x4.json`.
+   - Before: `git status --porcelain` is empty (checked outside the sandbox if the sandbox's masks show).
+   - After: `output/p9_3`'s listing is unchanged (J.11: 12,828 files, 12,500 of them in `eval/`).
+   - A REFUSED line is reported as it is, and nothing is re-run around it.
+   - Commit the two artifacts alone, in one commit.
+4. **The whole suite at a head that holds the two artifacts,** in CI's setting (one process, one thread, CPU only, no
+   `RLTRAFFIC_*` variable). `BRIEF_46` T.6 is why: P9.1's suite ran before its artifacts existed, and a guard that reads every
+   committed artifact fired only afterwards.
+   - **If `tests/test_erfc_determinism.py`'s pinned count fires** (771 today, `BRIEF_46` T.3), do not touch the test. Report,
+     from the guard's own walk over `docs/data` and the test module's own `_expected_p_value`:
+     - the new `(z, p_value)` pairs by artifact and by the guard's own path classes;
+     - any that carry an `alternative` key;
+     - any with `n_used = 0`;
+     - how many of all the pairs move under `==`.
+   - The coordinator then authorises the count in writing, as T.3 did. That authorisation also names the docstring's first
+     line (`DEFERRED` 125).
+   - Every other failure but the sandbox's three tmux refusals is reported as it is.
+5. **G4: the packet `docs/returns/P9.3.md`,** by `docs/returns/TEMPLATE.md`. Beside its template items it holds:
+   - J.8's three disclosures: one run of 8 shards on the laptop's CPU, alone; 0 watchdog restarts; A7's stall met at 14 shards,
+     with 8 set;
+   - the preview's disclosures (J.9-3, J.10):
+     - when it ran, when it was shown and at which commit;
+     - that nothing in hz4x4's analysis was open then;
+     - that the two campaign modules are frozen at `4dcbedc`;
+   - the comparison, by program, of the artifact's means, CIs and readings with the pinned preview output
+     (`j9_preview_output.txt`, `fa8f266b…c493c`), at its printed precision, with the counts reported;
+   - the old-cells artifact's sha256, its 25 counterparts and their sources, and an empty `pending`;
+   - the AI-assistance record (J.10's corrections stand).
+6. **Report "P9.3 G4 ready"** with the commits. The coordinator's G5 follows, then the merge.
+
+## K.3 Unchanged
+- Machine B's `output/p9_3` and its tar stay until P9.3 merges.
+- The two preview files stay as J.11 pinned them.
+- The coordinator has still not seen hz4x4's numbers. Its G5 reads them from the committed artifact.

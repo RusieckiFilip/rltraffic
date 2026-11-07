@@ -1,0 +1,296 @@
+[
+ {
+  "name": "K1 barrier admits everything",
+  "file": "offline/corrective_round.py",
+  "old": "    if not any(resolved == root or root in resolved.parents for root in allowed):\n        raise PermissionError(",
+  "new": "    if False:\n        raise PermissionError(",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K2 status skips the digest check",
+  "file": "offline/corrective_round.py",
+  "old": "    if payload.get(\"canonical_digest\") != canonical_digest_of(checkpoint):\n        raise ValueError(",
+  "new": "    if False:\n        raise ValueError(",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K3 status skips the recipe check",
+  "file": "offline/corrective_round.py",
+  "old": "    if recorded != planned:\n        raise ValueError(f\"{where}: the record's recipe",
+  "new": "    if False:\n        raise ValueError(f\"{where}: the record's recipe",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K4 a .partial is not refused",
+  "file": "offline/corrective_round.py",
+  "old": "    if partial.exists():\n        raise ValueError(f\"{where}: {partial} exists",
+  "new": "    if False:\n        raise ValueError(f\"{where}: {partial} exists",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K5 record loses the trainer's seconds",
+  "file": "offline/corrective_round.py",
+  "old": "        \"seconds\": float(result.seconds),\n        \"clock\": CLOCK_LABEL,",
+  "new": "        \"seconds\": 0.0,\n        \"clock\": CLOCK_LABEL,",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K6 route (ii) refusals do not stop",
+  "file": "offline/corrective_round.py",
+  "old": "    if outcome[\"n_refused\"]:\n        first = outcome[\"refused\"][0]\n        raise RuntimeError(\n            f\"route (ii) does not reproduce",
+  "new": "    if False:\n        first = outcome[\"refused\"][0]\n        raise RuntimeError(\n            f\"route (ii) does not reproduce",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K7 route (i) duplicates accepted",
+  "file": "offline/corrective_round.py",
+  "old": "        if key in out:\n            raise ValueError(f\"{key} appears twice in {arm}'s route-(i) record\")",
+  "new": "        pass",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K8 P3a skips route (i)'s att",
+  "file": "offline/corrective_round.py",
+  "old": "        if want is None or float(result.att_horizon) != float(want):\n            raise ValueError(",
+  "new": "        if False:\n            raise ValueError(",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K9 per-intersection digest of the joint array",
+  "file": "offline/corrective_round.py",
+  "old": "            \"per_intersection_sha256\": [action_sequence_sha256(stacked[:, [i]]) for i in range(stacked.shape[1])],",
+  "new": "            \"per_intersection_sha256\": [action_sequence_sha256(stacked) for i in range(stacked.shape[1])],",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K10 old cells use the campaign's builder",
+  "file": "offline/corrective_round.py",
+  "old": "                                  protected=(), factory_builder=None)",
+  "new": "                                  protected=(), factory_builder=a27_factory_builder(roots))",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K11 aggregates include runs not done",
+  "file": "offline/corrective_round.py",
+  "old": "            if run_status(roots, cell, seed) != \"done\":\n                continue\n            record = json.loads(run_record_path",
+  "new": "            if not run_record_path(roots, cell.scenario, cell.tier, cell.arm, seed).exists():\n                continue\n            record = json.loads(run_record_path",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K12 every cell treated as new",
+  "file": "offline/corrective_round.py",
+  "old": "    return is_a27_arm(scenario, method) or tier in A27_TIERS",
+  "new": "    return True",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K13 hook ignored by run_campaign",
+  "file": "offline/att_rederivation.py",
+  "old": "                builder = build_cell_factory if factory_builder is None else factory_builder",
+  "new": "                builder = build_cell_factory",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K14 A27 tiers unresolved by corpus dirs",
+  "file": "offline/att_rederivation.py",
+  "old": "    hz_declared = {**HZ_A27_TIERS, **HZ_TIERS}",
+  "new": "    hz_declared = dict(HZ_TIERS)",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K15 untrained cell evaluated",
+  "file": "offline/corrective_round.py",
+  "old": "        if undone:\n            raise ValueError(f\"{cell.scenario}:{cell.key} is not trained",
+  "new": "        if False:\n            raise ValueError(f\"{cell.scenario}:{cell.key} is not trained",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K16 100k arms read the 40k aggregate",
+  "file": "offline/corrective_round.py",
+  "old": "        return \"method_tier_grid\", [*argv, \"--steps\", str(steps), \"--artifact-prefix\", AGGREGATE_PREFIXES[steps],",
+  "new": "        return \"method_tier_grid\", [*argv, \"--steps\", str(steps), \"--artifact-prefix\", \"p9_1\",",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K17 mean_training_return per episode",
+  "file": "offline/corrective_round.py",
+  "old": "    return {\"ladder_att\": sum(finals) / len(finals), \"mean_training_return\": sum(streams) / len(streams)}",
+  "new": "    return {\"ladder_att\": sum(finals) / len(finals), \"mean_training_return\": sum(streams) / len(finals)}",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K18 check accepts an untyped prompt",
+  "file": "offline/corrective_round.py",
+  "old": "    if math.isnan(spec.target_rtg) or math.isnan(spec.rtg_scale):\n        raise ValueError(",
+  "new": "    if False:\n        raise ValueError(",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K19 shards unsorted",
+  "file": "offline/corrective_round.py",
+  "old": "    ordered = sorted(cells, key=cell_sort_key)\n    return [cell for index, cell in enumerate(ordered)",
+  "new": "    ordered = list(cells)[::-1]\n    return [cell for index, cell in enumerate(ordered)",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K20 old cells' refusals do not stop",
+  "file": "offline/corrective_round.py",
+  "old": "    if outcome[\"n_refused\"]:\n        first = outcome[\"refused\"][0]\n        raise RuntimeError(\n            f\"{outcome['n_refused']} old-cell",
+  "new": "    if False:\n        first = outcome[\"refused\"][0]\n        raise RuntimeError(\n            f\"{outcome['n_refused']} old-cell",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ },
+ {
+  "name": "K21 declaration rewritten silently",
+  "file": "offline/corrective_round.py",
+  "old": "        if target.read_text(encoding=\"utf-8\") != text:\n            raise FileExistsError(",
+  "new": "        if False:\n            raise FileExistsError(",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py"
+  ]
+ }
+]

@@ -1,0 +1,50 @@
+# C5 mutation tables, run in this session on the branch (offline/corrective_round.py, offline/campaigns/p9_1_corrective.sh)
+# Runner: mutate.py.txt (apply one textual mutant, run the named tests with -x, restore, sha256-check the file).
+
+## Table 1 -- 21 mutants against the C5 tests at the time (tests/test_corrective_round{,_train,_eval,_data,_declare,_stages}.py)
+mutant                                           result    evidence
+K1 barrier admits everything                     KILLED    FAILED tests/test_corrective_round.py::test_the_barrier_refuses_everything_else_under_output[p5_2/x.json]
+K2 status skips the digest check                 KILLED    FAILED tests/test_corrective_round.py::test_anything_but_a_complete_run_is_refused_not_retrained[digest]
+K3 status skips the recipe check                 KILLED    FAILED tests/test_corrective_round.py::test_anything_but_a_complete_run_is_refused_not_retrained[recipe]
+K4 a .partial is not refused                     KILLED    FAILED tests/test_corrective_round.py::test_anything_but_a_complete_run_is_refused_not_retrained[partial]
+K5 record loses the trainer's seconds            KILLED    FAILED tests/test_corrective_round_train.py::test_a_run_is_trained_once_and_recorded_with_its_clock_steps_and_digests
+K6 route (ii) refusals do not stop               KILLED    FAILED tests/test_corrective_round_eval.py::test_a_route_ii_episode_that_does_not_reproduce_route_i_stops_the_campaign
+K7 route (i) duplicates accepted                 KILLED    FAILED tests/test_corrective_round_eval.py::test_route_i_values_are_keyed_as_p8_4b_keys_a_cell_and_refuse_a_foreign_or_repeated_episode
+K8 P3a skips route (i)'s att                     KILLED    FAILED tests/test_corrective_round_eval.py::test_recorded_sequences_are_digested_jointly_and_per_intersection_and_tied_to_route_i
+K9 per-intersection digest of the joint array    KILLED    FAILED tests/test_corrective_round_eval.py::test_recorded_sequences_are_digested_jointly_and_per_intersection_and_tied_to_route_i
+K10 old cells use the campaign's builder         KILLED    FAILED tests/test_corrective_round_data.py::test_old_cells_roll_through_p8_4bs_registered_builder_and_a_non_reproduction_stops
+K11 aggregates include runs not done             SURVIVED  80 passed in 18.96s
+K12 every cell treated as new                    KILLED    FAILED tests/test_corrective_round_eval.py::test_the_builder_hands_a_registered_cell_to_p8_4bs_own_builder
+K13 hook ignored by run_campaign                 KILLED    FAILED tests/test_corrective_round_eval.py::test_run_campaign_uses_the_modules_builder_by_default_and_a_given_one_otherwise
+K14 A27 tiers unresolved by corpus dirs          KILLED    FAILED tests/test_corrective_round_eval.py::test_rederivation_corpus_dirs_resolves_a27s_tiers_and_still_refuses_an_unknown_one
+K15 untrained cell evaluated                     KILLED    FAILED tests/test_corrective_round_stages.py::test_a_cell_is_evaluated_only_once_its_runs_are_done
+K16 100k arms read the 40k aggregate             KILLED    FAILED tests/test_corrective_round_eval.py::test_route_i_is_the_module_clis_own_evaluate_with_the_campaigns_roots[hz1x1-mix50-dt_100k-method_tier_grid-tail1]
+K17 mean_training_return per episode             KILLED    FAILED tests/test_corrective_round_declare.py::test_the_grid_random_fresh_declaration_records_its_ladder_values_computed_not_typed
+K18 check accepts an untyped prompt              SURVIVED  80 passed in 17.94s
+K19 shards unsorted                              SURVIVED  80 passed in 20.24s
+K20 old cells' refusals do not stop              KILLED    FAILED tests/test_corrective_round_data.py::test_old_cells_roll_through_p8_4bs_registered_builder_and_a_non_reproduction_stops
+K21 declaration rewritten silently               SURVIVED  80 passed in 18.49s
+
+## Table 2 -- after the tests that kill K11, K18, K19, K21 were added; 21 mutants (the four survivors + 17 for the paths added in 8991b6c), against all eight C5 test files
+mutant                                           result    evidence
+K11 aggregates include runs not done             KILLED    FAILED tests/test_corrective_round_train.py::test_the_hz1x1_aggregate_carries_done_runs_only_and_refuses_a_run_its_record_does_not_describe
+K18 check accepts an untyped prompt              KILLED    FAILED tests/test_corrective_round_stages.py::test_check_refuses_the_campaign_while_hz1x1_random_freshs_prompt_is_untyped
+K19 shards unsorted                              KILLED    FAILED tests/test_corrective_round_stages.py::test_a_cells_shard_does_not_depend_on_the_order_the_cells_are_listed_in
+K21 declaration rewritten silently               KILLED    FAILED tests/test_corrective_round_declare.py::test_a_declaration_is_written_once_and_never_rewritten
+K22 declare-evaluation writes before checking    KILLED    FAILED tests/test_corrective_round_stages.py::test_declare_evaluation_refuses_a_manifest_that_declares_another_cell_set
+K23 manifest compared by count+digest only       KILLED    FAILED tests/test_corrective_round_stages.py::test_declare_evaluation_refuses_a_manifest_that_declares_another_cell_set
+K24 a missing manifest is accepted               KILLED    FAILED tests/test_corrective_round_stages.py::test_evaluate_refuses_before_the_evaluation_is_declared_and_writes_nothing
+K25 evaluate does not require the declaration    KILLED    FAILED tests/test_corrective_round_stages.py::test_evaluate_refuses_before_the_evaluation_is_declared_and_writes_nothing
+K26 old-cells CLI skips its manifest             KILLED    FAILED tests/test_corrective_round_stages.py::test_the_old_cells_cli_refuses_without_its_declared_manifest_and_rolls_nothing
+K27 old-cell shard partition unchecked           KILLED    FAILED tests/test_corrective_round_stages.py::test_old_cell_shards_partition_the_registered_cells
+K28 complete ignores the old cells               KILLED    FAILED tests/test_corrective_round_stages.py::test_status_is_complete_only_when_every_stage_is
+K29 repoint skips the digest                     KILLED    FAILED tests/test_corrective_round_preflight.py::test_a_registered_records_checkpoints_are_repointed_only_when_their_digests_match
+K30 route comparison ignores values              KILLED    FAILED tests/test_corrective_round_preflight.py::test_route_comparison_refuses_any_episode_that_differs
+K31 mixture declared into the main tree          KILLED    FAILED tests/test_corrective_round_preflight.py::test_the_preflight_writes_only_under_its_scratch_directory
+K32 grid path writes to scratch reuse root       KILLED    FAILED tests/test_corrective_round_preflight.py::test_the_a27_grid_path_reads_the_main_trees_protected_reuse_root_and_trains_nothing_there
+K33 preflight declares before measuring          KILLED    FAILED tests/test_corrective_round_preflight.py::test_the_preflight_writes_only_under_its_scratch_directory
+K34 driver pgrep misses evaluate                 KILLED    FAILED tests/test_corrective_round_driver.py::test_no_second_p9_1_stage_runs_beside_a_first
+K35 driver declares after the shards             KILLED    FAILED tests/test_corrective_round_driver.py::test_the_campaign_declares_the_evaluation_once_before_any_shard_and_shards_the_old_cells
+K36 driver d4rl keeps target dropout             KILLED    FAILED tests/test_corrective_round_driver.py::test_the_d4rl_stage_reruns_the_iql_arm_only_with_its_targets_off_beside_the_registered_artifact
+K37 driver token before the stage check          KILLED    FAILED tests/test_corrective_round_driver.py::test_every_refusal_precedes_the_token_and_the_token_is_consumed_before_any_stage
+K38 driver old cells unsharded                   KILLED    FAILED tests/test_corrective_round_driver.py::test_the_campaign_declares_the_evaluation_once_before_any_shard_and_shards_the_old_cells

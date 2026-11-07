@@ -1711,3 +1711,1217 @@ after it, all 255 runs are trained.
 - The coordinator verifies T8 from disk, as M.1 does T7. All 255 runs are then trained.
 - P9.1's evaluation is cleared in its own amendment, after its own check.
 - P9.3's `old-cells` waits for P9.1's merge (`BRIEF_48` J.9).
+
+---
+
+# ✅ AMENDMENT N — 2026-11-04, evening: T8 VERIFIED from disk — P9.1's TRAINING COMPLETE, 255 of 255 runs; the evaluate stage's check UNDER WAY (cleared in Amendment O)
+
+## N.1 T8, verified by the coordinator from disk: P9.1's training is COMPLETE
+- **The capture** (`output/p9_1_runs/train_capture.txt`) shows, in order:
+  - the token line (`stage train 20261104T150356Z from /home/filip/rltraffic-p91-run-d at c58afb8`);
+  - the session line (`it runs about 4.1 hours without a break`) and the plan (#236–#255, 20 runs, 4.06 planned hours);
+  - `train: ok`;
+  - the summary (`20 runs trained in 12373.8 s (their records' clock); ended by the plan; 0 runs missing, 0.00 planned hours
+    left`), whose next missing run is `null`;
+  - `SESSION COMPLETE`.
+
+  The author saw `DRIVER EXIT 0`. The stage's log counts 20 runs trained and 235 skipped as done, and has no warning, error or
+  traceback line.
+- **The times (CET, 2026-11-04):**
+  - the token at 16:03:56, and the first run started at 16:04:59;
+  - the last run finished at 19:31:25, and the capture's last write is 19:31:28;
+  - 3.46 h on the wall, and 3.44 h of training on the records' clock: 0.85 of the 4.06 planned hours. M.3 said about 3.7 h.
+- **The coordinator's own script** (M.1's, moved to all 255 runs; CPU, read-only):
+  - The code's order of all 255 runs equals the manifest written out by hand.
+  - **Every record and checkpoint of all 255 runs:** its cell, seed, recipe, label and steps, the checkpoint's sha256 and canonical
+    digest, a finite final loss and finite window means. 0 problems.
+  - **T8's recipes, written out by hand from A27(b):** `bc_m` at 1,024 windows, `bc_top10_m` and `bc_top10_perix_m` at 102, and
+    `iql_m` at 20,480 transitions with `target_dropout` `off`. None of their records has a `deterministic` field, which only the DT
+    records carry.
+
+    Each T8 checkpoint's A27 provenance (arm, base, targets, registration, point and campaign) equals the hand-written fields. Its
+    registration is `A27(b)` for the three BC arms and `A27(b) with A27(c)'s targets` for `iql_m`, and its point is `A27(d)`.
+  - **T8's 20 runs** ran on `cuda` with OMP and MKL at one thread, 40,000 steps each, in run order, none overlapping, all inside the
+    session.
+  - **Runs 1–235** are untouched: their files' times are before T8.
+  - `training_status`: 255 declared, **255 done**. No `.partial`, STOP or token is left.
+  - **The GPU trace:** 622 samples, the largest gap 20.2 s. Memory peaked at 7,827 MiB during `iql_m` and at 7,824 MiB during
+    `bc_m`, of the GPU's 16,303 MiB. Utilisation's median was 96 % inside the runs. The one sample at 0 % lies outside every run.
+  - **G.2 again:** the checkpoints' `runtime.git_commit` is `dc99753` for all 20, none dirty: `main`'s HEAD throughout T8, since the
+    coordinator's docs commit landed at 14:01:50, before it. T8's code commit is `c58afb8`, from its token line.
+- **The inputs, built inside T8:** `random_fresh`'s grid inputs in the 63.9 s between the token and #236 (M.2 measured 57.1 s), and
+  their IQL table inside #251, whose wall exceeds its gradient loop by 3.1 s.
+- **Measured seconds per arm** (the records' clock, uncontrolled, A27(a)), against T5's figures on `random` (M.2) and the plan:
+
+  | Arm | Runs | On `random_fresh` (T8): min–max, mean | On `random` (T5): mean | Planned |
+  |---|---|---|---|---|
+  | `bc_m` | #236–#240 | 455.8–481.7 s, 473.3 s | 484.5 s | 543.0 s |
+  | `bc_top10_m` | #241–#245 | 82.5–87.0 s, 84.8 s | 92.5 s | 97.0 s |
+  | `bc_top10_perix_m` | #246–#250 | 82.9–85.6 s, 83.9 s | 92.3 s | 97.0 s |
+  | `iql_m` | #251–#255 | 1,786.8–1,883.4 s, 1,832.8 s | 1,940.1 s | 2,187.3 s |
+
+  The 20 runs took 0.95 of the same arms' 13,047.3 s on `random`.
+- **`plateaued`** is true for the 15 BC-family runs and false for the five `iql_m` runs. It is recorded per run; no gate of the
+  campaign depends on it.
+- **Beside T8:** the coordinator ran nothing, and knows of no other run. P9.3's two docs commits (15:06 and 15:08) came before it.
+- **The whole training:** 255 runs from 16:11 CET on 2026-10-28 (run #1) to 19:31 CET on 2026-11-04 (run #255), in the campaign
+  stage's three runs and sessions T1–T8. They took 36.00 h on the records' clock, 0.89 of the 40.55 planned hours.
+
+## N.2 The coordinator's error: a directory created under `output/`
+- To read T8's log, the coordinator ran `cd` into `output/p9_1_runs/logs/20261104T150356Z` in its main shell, against its own rule.
+  It ran only reading commands there (`ls`, `wc`, `grep`, `head`, `tail`) and left at once.
+- **The harness then created an empty `.claude/.cc-writes` directory in that log directory,** at 20:44:11. Nothing else changed:
+  `train.log` and `gpu_trace.csv` keep their sizes and their times (19:31:26 and 19:31:24), as N.1 read them.
+- **The directory stays where it is, recorded here, until the author rules on it.** Nothing under `output/` is deleted without that
+  ruling. Seven older empty `.claude` directories lie under `output/`, from earlier sessions (2026-10-27 to 2026-10-29).
+
+## N.3 Next
+- **The evaluate stage is cleared in its own amendment (O), after its check, which is under way.** F.2-2 asked P9.1 to report how
+  long a grid route (i) cell takes before the evaluate sessions are cleared. P9.1's branch has no commit since `9eb908a`
+  (2026-10-28), so the coordinator is timing the units itself, as L.2 timed `dt_nomix`'s training. Nothing starts before O.
+- **Meanwhile, for P9.1, on its branch** (nothing in the run tree): Q18 (F.2-3, E.7's G4 diagnostics, tests first), F.2-4's
+  docstring, and G.2's ruling in the report. They were set on 2026-10-29, they are needed before G4, and the branch has no commit
+  since. Tests run on the CPU only: one process, one thread, nothing on the GPU.
+- **P9.3** waits for P9.1's merge (`BRIEF_48` J.9, J.11).
+
+---
+
+# ✅ AMENDMENT O — 2026-11-04, night: the evaluate stage CHECKED and its units TIMED by the coordinator (F.2-2); evaluate session E1 CLEARED (`P91_SESSION_HOURS=4`: about 4 h without a break, at most about 4 h 40 min)
+
+## O.1 The evaluate stage, checked before clearing (read-only on `output/` and the corpus)
+- **What it does,** read in the run tree's driver and module at `c58afb8`. Each session runs, in order:
+  1. **`declare-evaluation`,** in one process. The first session writes three manifests, and a later one checks them unchanged.
+     They declare 13,500 hz1x1 and 13,000 grid route (ii) episodes, and 18,200 old-cell episodes. None is on disk yet.
+  2. **`evaluate`,** in six shards. Each shard takes every sixth of the 53 new cells, sorted by scenario, tier and arm, so the grid's
+     cells come first. Each cell runs:
+     - **route (i):** the CLI's own `evaluate`, 500 episodes (5 seeds × 100 held-out draws) in one call, which cannot stop inside;
+     - **route (ii):** P8.4b's runner on the same 500 episodes, each reproducing route (i)'s `att_ours` under `==`. It can stop
+       between episodes;
+     - **P3a,** for its four new cells: the 500 episodes rolled once more, each alone, with their actions recorded. This is one unit,
+       which cannot stop inside.
+  3. **`old-cells`,** in six shards: the 38 registered hz1x1 cells, 18,200 episodes, each reproducing its committed `att_ours` under
+     `==`. They can stop between episodes, and they start only after all six `evaluate` shards have ended.
+  4. **`p3a-references`,** in one process: P3a's two registered random references, 500 episodes each. It can stop between the two.
+  5. **`status`:** `COMPLETE`, or the units left.
+
+  A session ends at `P91_SESSION_HOURS` or at the stop file, **plus the unit in flight in each shard** (F.2-2). Any refusal stops
+  the stage: a disagreement between the routes is a finding, not a cell to skip.
+- **The shards** (`shard_of`, every sixth of the sorted cells):
+  - **shard 0:** four grid cells; then the grid's `dt_nomix@random_fresh` (route (i), route (ii) and P3a: 1,500 grid DT episodes);
+    then four hz1x1 cells;
+  - **shards 1–5:** four or five grid cells, then four or five hz1x1 cells. P3a's other new cells are shard 1's hz1x1
+    `behaviour@random_fresh`, shard 2's hz1x1 `dt@random_fresh` and shard 5's grid `behaviour@random_fresh`.
+- **The module's own checks.** From the run tree (clean and detached at `c58afb8`):
+  - `check --stage evaluate` printed `{"ok": true, "stage": "evaluate"}`;
+  - `status` reads 255 of 255 runs trained, 0 of 53 route (i) cells, no route (ii) or old-cell manifest yet, and 0 of 6 P3a cells.
+- **The listings.** The corpus listing is unchanged. Under `output/p9_1*`, the coordinator's checks and timing changed nothing
+  after N.2's directory.
+
+## O.2 F.2-2: how long the units take, MEASURED by the coordinator
+F.2-2 asked P9.1 to report how long a grid route (i) cell takes, so that the evaluate sessions' hours could be stated first. P9.1's
+branch has no commit since `9eb908a` (2026-10-28), so the coordinator timed the units itself, as L.2 timed `dt_nomix`'s training.
+- **The method: the pre-flight's own form** (`_preflight_a27_grid_path`):
+  - route (i) by the campaign's own argv (`route_i_command`), with `--seeds 101` and the first held-out draws through
+    `narrowed_held_out_draws`; for hz1x1, its two training aggregates were rebuilt from the run records into the scratchpad;
+  - route (ii) by `run_campaign` with the campaign's `a27_factory_builder`, and P3a by `record_episode_actions`;
+  - the old cells by `run_campaign` with P8.4b's own builder, on their committed values.
+
+  The checkpoints were read from `output/p9_1_runs/checkpoints`, and every file was written under the coordinator's scratchpad. The
+  runs were on `cuda`, with OMP and MKL at one thread, outside the sandbox. The scripts printed seconds, counts and flags only, and no
+  outcome value was read.
+- **Every timed episode reproduced its value under `==`.** 1,530 route (ii) episodes (30 on the grid and 1,500 on hz1x1) and 20 P3a
+  episodes reproduced route (i), and 40 old-cell episodes reproduced their committed `att_ours`. No episode was refused.
+- **The grid, alone** (10 episodes each, draws 1000–1009), **and six processes at once** (`dt_nomix` for 10 episodes, five BC and
+  IQL arms on `fixedtime` for 40 each):
+
+  | Unit | Alone, s per episode | Six at once, s per episode | One 500-episode unit, six at once |
+  |---|---|---|---|
+  | `dt_nomix@random_fresh`: route (i) / route (ii) / P3a | 3.13 / 2.91 / 2.72 | 4.23 in route (i) | route (i) about 35 min; P3a about 32 min |
+  | `bc_m@fixedtime`: route (i) / route (ii) | 1.98 / 1.96 | 2.78 in route (i) | route (i) about 23 min |
+  | `bc_top10_m` and `bc_top10_perix_m` (`fixedtime`): route (i) | — | 2.78 | about 23 min |
+  | `iql_m@fixedtime` and `iql_t@fixedtime`: route (i) | 2.23 (`iql_m`) | 2.86 and 2.87 | about 24 min |
+  | `behaviour@random_fresh`: route (i) / route (ii) / P3a | 1.40 / 1.45 / 1.53 | — | about 16–18 min |
+
+  - **Six at once is 1.28–1.41 times slower than alone:** `iql_m` 1.28, `dt_nomix` 1.35 and `bc_m` 1.41.
+  - `behaviour@random_fresh` ran beside one other process, the coordinator's hz1x1 timing.
+  - With six processes, the GPU held at most 2,171 MiB of its 16,303, at a median utilisation of 27 %. The host kept at least
+    37.6 GiB available, and no process exceeded 1.26 GiB.
+  - **C.4's smoke figures are not the campaign's.** On its two-step checkpoints, the grid's `dt_nomix` took 9.3 s per route (ii)
+    episode; the trained checkpoints take 2.9–3.1 s.
+- **hz1x1, alone,** over whole cells of 500 episodes (O.3-6), **and the old cells, alone,** over the first 10 committed episodes of
+  four cells:
+
+  | Unit | Alone, s per episode | One 500-episode unit, six at once (× 1.40) |
+  |---|---|---|
+  | hz1x1 `dt@random_fresh`: route (i) / route (ii) | 1.85 / 1.81 | route (i) about 22 min |
+  | hz1x1 `iql_t@mappo1000`: route (i) / route (ii) | 1.05 / 1.06 | route (i) about 12 min |
+  | hz1x1 `bc_100k@mappo1000`: route (i) / route (ii) | 0.95 / 0.98 | route (i) about 11 min |
+  | old cells `iql@maxpressure`, `madt`, `mappo1000` and `behaviour@fixedtime` | 1.01, 1.73, 1.69 and 0.66 | per episode |
+
+  - **The old cells take 6.05 h alone in all, 0.78–1.23 h per shard.** This weights each old cell's committed episodes by its
+    family's rate: the BC and IQL arms as measured, the registered DTs as `madt`, the MAPPO behaviour cells as `mappo1000`, and the
+    rule-based ones as `behaviour@fixedtime`.
+  - The hz1x1 `behaviour@random_fresh` cell is not timed. It is taken at 1.0 s per episode.
+- **The projection.** The coordinator's script runs each shard's units in the module's order, at these rates. While n shards run,
+  each is slowed by 1 + k (n − 1). With k from 0.07 to 0.09, that is 1.35–1.45 for six, around the measured 1.28–1.41.
+  - **The whole stage takes about 8.0–8.5 h.**
+    - The six `evaluate` shards end after 4.8–6.5 h.
+    - The old cells wait for the last of them, and end about 1.6–1.7 h later.
+    - P3a's references take about 0.35 h after that.
+  - **At a 4-h deadline,** each shard is either between two route (ii) episodes or finishing an hz1x1 route (i) cell with minutes
+    left. So the session ends at about 4.1 h, with 0.6–1.9 h of alone-work left per shard.
+  - **The next session** runs the rest of `evaluate` (about 2.0–2.4 h), then the old cells and P3a's references: about 3.9–4.5 h
+    in all.
+  - The grid's rates come from its first 10 or 40 held-out draws, and the draws' demand varies. E1's own records will show by
+    how much.
+
+## O.3 Rulings
+1. **F.2-2 is answered by O.2's measurement.** P9.1's own report of it is no longer needed.
+2. **The evaluation runs in sessions of about four hours.**
+   - E1 is cleared now at `P91_SESSION_HOURS=4`, with six workers (the cap).
+   - E2 is cleared after E1 is verified, with its hours from E1's own records: the route (i) files' times and the shards' logs.
+   - A third, short session follows only if E2 would otherwise run past about five hours.
+3. **E1's hours.** It runs about 4 hours without a break.
+   - At its deadline, the projection finds each shard either between two route (ii) episodes or minutes from the end of an hz1x1
+     route (i) cell. So E1 should end at about 4.1 h.
+   - The longest unit that cannot stop is the grid's `dt_nomix` route (i), about 35 minutes with six shards running. So E1 runs at
+     most about 4 h 40 min, unless a stall restart re-rolls a unit that was in flight at the deadline.
+4. **The command checks CUDA first**, as the training's did. The workers run their policies on the GPU (`device` None), as the
+   coordinator's timing did. On the CPU they would be slower than every figure above.
+5. **Beside the evaluation:**
+   - no training and nothing else on the GPU;
+   - nothing memory-heavy on the laptop's WSL;
+   - P9.1's own work (O.5) may run one pytest process at a time, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`;
+   - P9.3 runs nothing (`BRIEF_48` J.11).
+
+   Its values do not depend on the machine's load, only its hours do.
+6. **The coordinator's error in the timing.** `method_tier_grid` binds the held-out draws when it is imported, so
+   `narrowed_held_out_draws` does not narrow them there. The coordinator's hz1x1 timing therefore rolled each cell's 500 episodes
+   instead of 10: about an hour of one CPU core, every file in its scratchpad, and no value read. The campaign never narrows draws,
+   so nothing in it changes.
+7. **The coordinator's timing outputs are kept** in its scratchpad: route (i) for three whole hz1x1 cells, and the grid's first
+   draws. At E1's verification the coordinator compares them with E1's own route (i) files by program, printing only counts of equal
+   episodes: the same code, checkpoints and seeds must give the same values. `/tmp` does not survive a restart of WSL; if they are
+   lost, that check is skipped and said so.
+
+## O.4 ✅ THE TOKEN: evaluate session E1 (the author's tmux `p91`)
+**E1 runs about 4 hours without a break, and at most about 4 h 40 min** (O.3-3). It ends by itself.
+- **What it runs:**
+  - `declare-evaluation`, which writes the three manifests once;
+  - the six `evaluate` shards until the deadline, 4 h after the session's start. Each shard then finishes its unit in flight.
+
+  The old cells and P3a's references come in a later session.
+- **Before it:**
+  - the coordinator's timing has ended (at 22:04:46), and no other P9.1 stage runs;
+  - nothing runs on the GPU;
+  - keep the laptop plugged in and awake.
+- **The command,** at the pane's prompt, as one line:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: E1 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_evaluate && P91_SESSION_HOURS=4 WORKERS=6 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh evaluate c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/evaluate_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+- **The pane** shows:
+  - the token line;
+  - the session line (`evaluate session: it runs about 4 hours without a break (P91_SESSION_HOURS), PLUS the unit of work in
+    flight in each shard …`). Its "7 min 47 s" is the smoke's hz1x1 cell: O.2 has the campaign's figures;
+  - `declare_evaluation: ok`.
+
+  Then it is quiet until the deadline. Progress is in `output/p9_1_runs/logs/<stamp>/evaluate_shard<k>.log`.
+- **Done when** the capture shows:
+  - `evaluate: 6 shards ended cleanly`;
+  - the `left:` line (route (i) cells, route (ii) episodes per scenario, P3a cells and old-cell episodes left);
+  - `stage evaluate <stamp>: SESSION ENDED at the hours bound (4 h) …`.
+
+  The pane must also show `DRIVER EXIT 0`. If everything is done, the last line is `stage evaluate <stamp>: COMPLETE …` instead.
+- **To end it early:** `touch /home/filip/rltraffic/output/p9_1_runs/STOP`. Each shard ends after its unit in flight: seconds in a
+  route (ii), up to about 35 minutes in a grid route (i) or P3a. The session then ends `at the stop file`. Remove the file by hand
+  before the next session.
+- **A failure:** `evaluate shard <k> FAILED` with the last lines of its log, then `FAILED: …` and `DRIVER EXIT 1`. Report it; nothing
+  is re-run without a ruling. A route (ii) episode that does not reproduce route (i) is a finding.
+- **A stall** (DEFERRED 104): a shard with no progress for 120 s is restarted, at most 60 times, and each restart is logged in
+  `restarts.log`. A restart rolls the unit in flight again from scratch, with the same seeds and values.
+- **Ctrl+C is the emergency stop only.** It loses the units in flight.
+
+## O.5 After E1, and meanwhile
+- **After E1:** the coordinator verifies it from disk (the route (i) files, the route (ii) episodes, P3a, the restarts, the logs),
+  then clears E2, its hours first.
+- **Meanwhile, for P9.1, on its branch** (nothing in the run tree): Q18 (F.2-3, E.7's G4 diagnostics, tests first), F.2-4's
+  docstring, and G.2's ruling in the report. These were set on 2026-10-29 and are needed before G4; the branch has no commit since.
+  Tests run CPU only, one process, one thread, nothing on the GPU.
+- **P9.3** waits for P9.1's merge (`BRIEF_48` J.9, J.11).
+
+---
+
+# ✅ AMENDMENT P — 2026-11-05, evening: evaluate session E1 VERIFIED from disk; E2 CLEARED (`P91_SESSION_HOURS=4`: about 4 h without a break, at most about 4 h 30 min); a third session, E3, of about 1.5–1.8 h follows (O.3-2)
+
+## P.1 E1, verified from disk (read-only; the scripts printed counts, flags, provenance and seconds; no outcome value was read)
+- **The session** ran from the run tree at `c58afb8`:
+  - token at 11:10:34 CET (stage `20261105T101034Z`), deadline 15:10:34, the six shards started at 11:10:36;
+  - three shards ended at the deadline, between two route (ii) episodes, 0.9–2.6 s after it;
+  - three finished the hz1x1 route (i) cell in flight, 179, 309 and 331 s after it;
+  - the capture's last line was written at 15:16:08: **4 h 05 min 35 s after the token** (O.3-3: about 4.1 h, at most about
+    4 h 40 min).
+
+  The capture holds the token line, the session line, `declare_evaluation: ok`, `evaluate: 6 shards ended cleanly`, the `left:`
+  line and `SESSION ENDED at the hours bound (4 h)`. The author's pane showed `DRIVER EXIT 0`.
+- **The 53 cells and the six shards,** written out by hand (the cells, sorted, every sixth), equal the code's.
+- **Route (i): 33 of 53 cell files,** the grid's 26 and hz1x1's 7. Each was checked for:
+  - 500 episodes over the 5 seeds × 100 held-out draws, of its own arm, every value a finite float;
+  - engine seed 1000, the declared steps, the tier, and the cell's seeds and draws;
+  - its mean, recomputed from its episodes, equal to within 10⁻¹² relative;
+  - a write inside E1.
+
+  **Provenance.** Each grid file names each seed's checkpoint (125 of 125), and its weight digest equals the digest recomputed from
+  the checkpoint, both by `tier_sweep`'s function and by the coordinator's own loop (125 of 125). Each checkpoint's file sha256
+  equals its training record (125 of 125). The hz1x1 files record `cuda`, one thread, and main's HEAD at the write (`25410f4`), as the
+  checkpoints do (G.2). The code that ran is the run tree's at `c58afb8`, which the driver checks before it starts. The training
+  aggregates that route (i) wrote for hz1x1 (`output/p9_1/p9_1_training.json`, 90 runs; `p9_1_100k_training.json`, 40) equal their
+  rebuild from the run records.
+- **Route (ii).** Both manifests equal the module's and the hand-written cell lists (13,500 hz1x1 and 13,000 grid episodes, engine
+  seed 1000), and were written once, at 11:10:36. There are 14,405 episode files (the grid's 12,508, hz1x1's 1,897) and **0
+  refused**. For every one:
+  - it is declared, and its names are its file's;
+  - `reproduces_committed` is true, `att_ours == committed_att_ours`, and `committed_att_ours ==` route (i)'s `att_horizon` for the
+    same episode;
+  - it was written inside E1.
+
+  Every trained arm's episode names its run's checkpoint (13,905), and the grid's behaviour cell is algorithmic (500).
+- **P3a: 1 of 6 cells,** the grid's `behaviour@random_fresh`, written at 14:25:45. It has 500 episodes over the 5 × 100 keys, and
+  `att_ours ==` route (i) in 500 of 500. Each episode's action-sequence sha256 is well formed (500 distinct), and so is each of its
+  16 per-intersection sha256s. The other three new cells are E2's; the two registered references are `p3a-references`'.
+- **The old cells** are declared (18,200 episodes, the manifest equal to the module's). None was rolled: they start only after the
+  last `evaluate` shard (O.1).
+- **The status, recomputed,** equals the capture's `left:` line and the session's `status.json`:
+  - route (i): 20 of 53 cells left;
+  - route (ii): 492 grid and 11,603 hz1x1 episodes left;
+  - P3a: 5 of 6 cells left;
+  - old cells: 18,200 of 18,200 episodes left.
+- **The logs.** Each shard's log holds only:
+  - the CLIs' seed lines and the grid's `episodes written` lines;
+  - route (ii)'s progress lines, with `refused=0` throughout;
+  - the module's result: stopped by the hours bound, and the cells left;
+  - hz1x1 route (i)'s summary lines. These print means, so they were counted and not read.
+
+  There is no other line: no warning, error or traceback. There is no `restarts.log`, and the six stall files are empty. No STOP,
+  token, `.partial` or `.tmp` file is left.
+- **Nothing else changed.**
+  - Training: 255 of 255; no checkpoint or record was written during E1.
+  - Under `output/p9_1*`, against the listing taken after the coordinator's timing: 572 of the 575 paths are unchanged. The other
+    three are directories that gained E1's files, and none was removed. The only new files are E1's: route (i), route (ii), P3a,
+    the old cells' manifest, the logs, the capture and the two aggregates.
+  - Nothing else under `output/` was written after E1's start, and the corpus listing is unchanged.
+  - After E1, outside the sandbox, read-only: no P9.1, P9.3 or pytest process, and no process on the GPU.
+- **O.3-7's check.** The coordinator's route (i) outputs of 2026-11-04 equal E1's route (i) files, episode by episode, in
+  `att_horizon`, `episode_reward` and `horizon_vehicle_count` under `==`:
+  - the grid: the first 10 or 40 draws of seed 101, in ten outputs over seven cells, three of them timed both alone and six at once
+    (250 episodes);
+  - hz1x1's whole `bc_100k@mappo1000` cell (500).
+
+  The same code, checkpoints and seeds gave the same values alone, six at once and in the campaign. hz1x1's other two timed cells,
+  `dt@random_fresh` and `iql_t@mappo1000`, are E2's; their outputs are kept for E2's check.
+
+## P.2 E1's hours, and the coordinator's error in O.2's projection
+- **The grid ran as O.2 expected:** six at once, 1.32–1.56 times slower than alone.
+  - BC and IQL arms: route (i) and route (ii) 2.75–3.27 s per episode, so 23–27 min per 500-episode unit;
+  - `behaviour@random_fresh`: 1.97–2.18 s per episode;
+  - `dt_nomix@random_fresh`: route (i) 4.73 s per episode, 39.4 min (O.2: about 35 min); route (ii) 4.54 s.
+- **hz1x1 did not.** With six shards running (mostly four hz1x1 beside two grid), hz1x1's BC and IQL cells ran 2.17–2.26 times
+  slower than alone, and its DT 1.63–1.64 times:
+  - `bc_100k@mappo1000`, the very cell O.2 timed alone, took 2.10 s per route (i) episode against 0.95 alone, and 2.16 per route
+    (ii) episode against 0.98;
+  - `iql_t@fixedtime` took 2.29 / 2.39 (against O.2's `iql_t@mappo1000` alone, 1.05 / 1.06);
+  - `dt_100k@mappo1000` took 3.03 / 2.97 (against O.2's `dt@random_fresh` alone, 1.85 / 1.81).
+
+  O.2 took 1.35–1.45 for every unit. **That was the coordinator's error: it carried the grid's six-at-once factor over to hz1x1
+  without measuring hz1x1 six at once.** Why hz1x1 is hit harder was not measured. It changes the hours, not the values (P.1:
+  every value reproduced under `==`, alone, six at once and in the campaign).
+- **The consequence.** E1 itself ended as O.3-3 said. The rest, though, takes longer than O.2's "E2 about 3.9–4.5 h".
+  - The coordinator's projection, rerun with E1's rates (and again with every slowdown 15 % larger), gives about 5.5–5.8 h without a
+    deadline:
+    - the `evaluate` shards end after 1.9–3.1 h;
+    - the old cells end about 2.2–2.3 h after the last of them;
+    - P3a's references take 0.35 h after that.
+  - The old cells' weighting reproduces O.2's 0.78–1.23 alone-hours per shard.
+
+  That is past O.3-2's five hours, so **a third session, E3, follows**, as O.3-2 provides.
+- **E1 ran beside P9.1's morning work.** P9.1's branch gained three commits during E1: `8ccea70` at 11:11 (a merge of main at
+  `25410f4`), `8ab9761` at 11:37 and `11616ea` at 11:44 (Q18, F.2-4 and G.2, with their test runs). O.3-5 allowed this, and E1's
+  first grid cells (11:10–11:58) ran at the later cells' rates. The coordinator verifies those commits in their own amendment,
+  before G4. Nothing in E2 depends on them: the run tree stays at `c58afb8`.
+
+## P.3 Rulings
+1. **E1 is verified.**
+2. **E2 runs at `P91_SESSION_HOURS=4`, with six workers, and E3 follows it.** The evaluation's sessions stay at about four hours
+   (O.3-2), and the whole rest, about 5.5–5.8 h, is past five.
+3. **E2's hours.** By the projection, from E1's rates and with every slowdown 15 % larger:
+   - the six `evaluate` shards end at about 3.0–3.1 h;
+   - the old cells then run until the deadline and stop between episodes, with about 40–50 % of their work done;
+   - so E2 ends at about 4.0 h.
+
+   If the `evaluate` shards are still running at the deadline, the longest unit that cannot stop is an hz1x1 DT route (i) or P3a,
+   about 25–27 min with six running. So **E2 runs at most about 4 h 30 min.** The grid's `dt_nomix` P3a, about 35 min, comes early
+   in shard 0, after its 396 route (ii) episodes, and ends at about 1.1 h.
+4. **E3** is cleared after E2's verification, with its hours from E2's records. It runs the old cells' rest (about 1.1–1.5 h),
+   then P3a's two references (about 0.35 h): about 1.5–1.8 h in all.
+5. **Beside E2,** as O.3-5:
+   - no training and nothing else on the GPU;
+   - nothing memory-heavy;
+   - P9.1's own work one pytest process at a time, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`;
+   - P9.3 runs nothing.
+6. **The coordinator's outputs for O.3-7** stay in its scratchpad for E2's check of hz1x1's `dt@random_fresh` and
+   `iql_t@mappo1000`. If they are lost, that check is skipped and said so.
+
+## P.4 ✅ THE TOKEN: evaluate session E2 (the author's tmux `p91`)
+**E2 runs about 4 hours without a break, and at most about 4 h 30 min** (P.3-3). It ends by itself.
+- **What it runs:**
+  - `declare-evaluation`, which finds the three manifests unchanged and writes nothing;
+  - the six `evaluate` shards, each resuming from disk, to the end of their cells (about 3.0–3.1 h);
+  - then the six `old-cells` shards, until the deadline 4 h after the session's start.
+
+  At the deadline each shard ends between two episodes, or finishes its unit in flight.
+- **Before it:**
+  - no other P9.1 stage runs, and nothing runs on the GPU;
+  - `output/p9_1_runs/STOP` does not exist;
+  - keep the laptop plugged in and awake.
+- **The command,** at the pane's prompt, as one line:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: E2 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_evaluate && P91_SESSION_HOURS=4 WORKERS=6 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh evaluate c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/evaluate_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+- **The pane** shows:
+  - the token line, the session line and `declare_evaluation: ok`;
+  - after about 3 h, `evaluate: 6 shards ended cleanly`;
+  - at about 4 h, `old-cells: 6 shards ended cleanly`, the `left:` line and `stage evaluate <stamp>: SESSION ENDED at the hours
+    bound (4 h) …`;
+  - then `DRIVER EXIT 0`.
+- **Done when** the capture shows those lines under E2's stamp and the pane shows `DRIVER EXIT 0`. The expected `left:` line:
+  - route (i) 0 of 53 cells;
+  - route (ii) episodes grid4x4 0 of 13000, hz1x1 0 of 13500;
+  - P3a 2 of 6 cells;
+  - roughly half of the 18,200 old-cell episodes.
+
+  If the `evaluate` shards are still running at the deadline, `old-cells` does not start, and the `left:` line shows what is left
+  of them.
+- **STOP, a failure, a stall and Ctrl+C:** as O.4. A route (ii) episode that does not reproduce route (i), or an old-cell episode
+  that does not reproduce its committed value, is a finding: the shard fails, and nothing is re-run without a ruling.
+
+## P.5 After E2, and meanwhile
+- **After E2:** the coordinator verifies it from disk, as in P.1, now with the old cells' episodes and O.3-7's two hz1x1 cells.
+  Then it clears E3, its hours first.
+- **P9.1's commits `8ab9761` and `11616ea`** (Q18, F.2-4, G.2; Q19 and Q20 offered) are verified by the coordinator in their own
+  amendment, before G4.
+- **P9.3** waits for P9.1's merge (`BRIEF_48` J.9, J.11).
+
+---
+
+# ✅ AMENDMENT Q — 2026-11-06: evaluate session E2 VERIFIED from disk (one stall, restarted by B.3's guard as designed); E3, the last session, CLEARED (`P91_SESSION_HOURS=2`: about 1 h without a break, at most about 2 h 15 min)
+
+## Q.1 E2, verified from disk (read-only; the scripts printed counts, flags, provenance and seconds; no outcome value was read)
+- **The session** ran from the run tree at `c58afb8`, which its token line names:
+  - token at 21:03:18 CET (stage `20261105T200318Z`), deadline 01:03:18;
+  - the six `evaluate` shards started at 21:03:20, resumed from disk, and skipped E1's finished cells in 1.5–1.6 s;
+  - they ended after their last cells, all before the deadline: at 1.70, 1.96, 1.99, 2.38, 2.61 and 2.74 h;
+  - the six `old-cells` shards started at 23:47:41 and ran to the deadline, each stopping between two episodes 0.3–1.9 s after
+    it;
+  - the capture's last line was written at 01:03:23: **4 h 00 min 06 s after the token** (P.3-3: about 4.0 h).
+
+  Under E2's stamp the capture holds the token line, the session line, `declare_evaluation: ok`, `evaluate: 6 shards ended
+  cleanly`, `old-cells: 6 shards ended cleanly`, the `left:` line and `SESSION ENDED at the hours bound (4 h)`. E1's part above it
+  is unchanged. The author's pane showed `DRIVER EXIT 0`.
+- **The 53 cells and the six shards,** written out by hand, equal the code's, as in P.1.
+- **Route (i): 53 of 53 cell files.** E1's 33 are unchanged. E2's 20, all hz1x1, were each checked as in P.1:
+  - 500 episodes over the 5 × 100 keys, of its own arm, every value a finite float;
+  - engine seed 1000, the tier, the cell's seeds and draws, and its declared steps;
+  - its mean, recomputed, equal to within 10⁻¹² relative;
+  - a write inside E2.
+
+  The 20 record `cuda`, one thread, and main's HEAD at the write, `4237cee` (G.2). hz1x1's `behaviour@random_fresh` has no
+  `declared_gradient_steps` key: `method_tier_grid`'s `behaviour` command declares no budget for an algorithmic arm, while the
+  grid's `tier_sweep` declares 40,000 for every cell. The hz1x1 aggregates (90 and 40 runs), rewritten during E2, again equal their
+  rebuild.
+- **Route (ii) is complete:** 13,500 hz1x1 and 13,000 grid episode files, every one declared, and **0 refused**. For every one:
+  - its names are its file's;
+  - `reproduces_committed` is true, `att_ours == committed_att_ours`, and `committed_att_ours ==` route (i)'s `att_horizon` for the
+    same episode.
+
+  E1's 14,405 files are unchanged. E2's 12,095 (hz1x1 11,603, the grid 492) were written inside E2. The 25,500 trained-arm
+  episodes name their run's checkpoint, and the two behaviour cells' 1,000 are algorithmic.
+- **P3a: 4 of 6 cells.** E1's grid `behaviour@random_fresh`, and E2's three:
+  - the grid's `dt_nomix@random_fresh`, written at 22:06:16;
+  - hz1x1's `dt@random_fresh`, at 23:26:14;
+  - hz1x1's `behaviour@random_fresh`, at 23:39:45, after the restart (Q.2).
+
+  Each has 500 episodes over the 5 × 100 keys and `att_ours ==` route (i) in 500 of 500. Its sequence sha256s are well formed (500
+  distinct in each), and so are its 16 or 1 per-intersection sha256s. The two registered references are E3's.
+- **The old cells: 13,119 of 18,200 episodes (72 %), 0 refused.** They fall in 32 of the 38 cells: 26 complete, and one cell in
+  flight in each shard at the deadline. The other 6 cells are not started. For every episode:
+  - it is declared, and its names are its file's;
+  - `reproduces_committed` is true, and `att_ours == committed_att_ours`;
+  - `committed_att_ours ==` its committed artifact's `att_horizon`, read from the run tree's `docs/data` by the module's
+    `old_cell_committed`;
+  - `att_engine` is a finite float;
+  - it was written in E2, after the old cells began.
+
+  Each shard's files are a prefix of its order (the sorted cells, every sixth; each cell's keys by seed and draw), so no episode was
+  skipped. Every episode whose policy is a checkpoint names a file that exists, five distinct ones in each complete seeded cell.
+  The rule-based behaviour cells are `algorithmic`, or a `plan` (fixed time).
+- **The status, recomputed,** equals the capture's `left:` line and the session's `status.json`:
+  - route (i): 0 of 53 cells left;
+  - route (ii): 0 grid and 0 hz1x1 episodes left;
+  - P3a: 2 of 6 cells left, the references;
+  - old cells: 5,081 of 18,200 episodes left.
+- **The logs.** Each `evaluate` shard's log holds only:
+  - the CLIs' seed lines;
+  - route (ii)'s progress lines, with `refused=0` throughout;
+  - hz1x1 route (i)'s summary lines, 20 in all. These print means, so they were counted and not read;
+  - the module's result: every cell of the shard evaluated, none left, none waiting, not stopped.
+
+  Shard 1's log also holds the driver's restart line (Q.2). Each `old-cells` shard's log holds only progress lines, with `refused=0`,
+  and the module's result:
+  - `rolled` equals its files on disk, and nothing was skipped;
+  - 0 refused, stopped by the bound;
+  - `rolled` plus `not_reached` equals its episodes.
+
+  There is no other line: no warning, error or traceback. No STOP, token, `.partial` or `.tmp` file is left.
+- **Nothing else changed.**
+  - Training: 255 of 255; no checkpoint or record was written after E1 began.
+  - Under `output/p9_1*`, against E1's listing: 15,034 of 15,046 paths are unchanged, and none was removed. The other 12 are:
+    - 9 directories that gained E2's files;
+    - the capture, appended;
+    - the two aggregates, rewritten at the same size and equal to their rebuild.
+
+    The 25,268 new paths are all E2's: route (i) 20, route (ii) 12,095, P3a 3, the old cells 13,119, `p3a/hz1x1/`, and the log
+    directory with its 29 files.
+  - Nothing else under `output/` was written after E2's token, and the corpus listing is unchanged.
+  - After E2, outside the sandbox, read-only: no P9.1, P9.3 or pytest process, and the GPU at 699 MiB with no compute process.
+- **O.3-7's check is complete.** hz1x1's whole `dt@random_fresh` and `iql_t@mappo1000` cells (500 episodes each) equal the
+  coordinator's outputs of 2026-11-04 in `att_horizon`, `episode_reward` and `horizon_vehicle_count` under `==`. With P.1's 750,
+  that is **1,750 of 1,750 episodes equal**: the same code, checkpoints and seeds gave the same values alone, six at once, and in
+  the campaign.
+- **The coordinator's error, in its own check.** Its script first expected 40,000 declared steps on hz1x1's behaviour cell,
+  carrying the grid's `tier_sweep` convention over, and flagged the cell. The module's code shows that the key's absence is by
+  design. The check was corrected and the script rerun: 0 problems. The error was in the check, not in the run.
+
+## Q.2 The stall in E2, and the stall file the author asked about
+- **The author asked** whether `old-cells_shard1.stall0.txt` (empty, 23:47:41) marks a stall. **It does not.** Every worker opens
+  its stall file when it starts: `offline/stall_guard.py` truncates it and keeps it open for faulthandler, and the driver reads an
+  empty file as "no stall". The six `old-cells` shards opened theirs at 23:47:41, when they started, and all six are empty.
+- **One stall did occur, elsewhere:** `evaluate` shard 1, at 23:32:13.
+  - `evaluate_shard1.stall0.txt` holds faulthandler's dump (742 bytes, starting with the banner `Timeout (0:02:00)!`).
+  - `restarts.log` holds one entry: restart 1 of at most 60, window 120 s, and the dumped stack, equal to the dump.
+  - `evaluate_shard1.stall1.txt` (empty, 23:32:14) is the restarted worker's.
+- **Where it stalled.** The worker was in P3a's recording of hz1x1's `behaviour@random_fresh`. Its stack ends in
+  `record_episode_actions`, at its call into `dt_gate.evaluate_arm`, with no Python frame below. So the worker was in C code
+  reached from that line, as when `evaluate_arm` has returned and its frame releases the episode's env, with its CityFlow engine.
+  This is consistent with `DEFERRED` 104's destructor race (`docs/notes/P5.3c_HANG_2026-09-30.md`): at the end of an episode,
+  after its values exist.
+- **B.3's guard worked as designed.**
+  - The guard's window is 110–120 s, so the last progress came at about 23:30:13–23:30:23. Then came the dump and exit 1, and
+    the driver restarted the worker at 23:32:14, with no new token.
+  - The restarted worker resumed from disk. It skipped shard 1's finished cells and wrote one file, the P3a in flight, from
+    scratch: 500 episodes in 451 s, each `==` route (i).
+  - P3a writes once per cell, so the first attempt's 4 min of work left no file.
+  - The stall cost shard 1 about 6 min (369 s). It still ended 8 min before shard 0, so E2 was not lengthened.
+- **It is the first stall of P9.1's evaluate stage,** in about 68,000 episodes over E1 and E2. P5.3c's note saw two in about 1,200,
+  under heavier load. It changes no value.
+
+## Q.3 E2's hours against P.3-3
+E2 ended at 4.0 h, as P.3-3 said, but its parts ran faster than projected:
+- The `evaluate` shards ended at 1.70–2.74 h, against the projection's 1.85–2.96 h: 0.88–0.93 of it, shard by shard.
+  - With all six running, hz1x1's BC took 1.84–2.04 s per episode, its IQL 1.87–2.17 and its DT 2.69–2.87. E1's six-at-once
+    rates were 2.03–2.16, 2.29–2.40 and 2.97–3.03.
+  - E2's grid work ended at 1.05 h. E1's hz1x1 units had run mostly beside two grid processes (P.2).
+- The old cells did 72 % of their alone-work (4.35 of 6.05 alone-hours), against the projection's 38–50 %.
+  - With six at once throughout, they ran 1.34–2.05 times slower than O.2's alone rates: BC-family 1.85, IQL 2.05, DT 1.62, the
+    MAPPO-policy cells 1.34, the rule-based 2.01.
+  - The projection had taken 2.21, 2.26, 1.64, 2.21 and 1.36 from E1's units.
+
+The projection erred on the slow side. It changes the hours, not the values.
+
+## Q.4 Rulings
+1. **E2 is verified.**
+2. **E3, the last session, runs at `P91_SESSION_HOURS=2`, with six workers: about 1 h without a break.** From E2's own rates:
+   - the `evaluate` pass over the 53 finished cells takes under a minute;
+   - the old cells' rest takes 0.62–0.72 h: 5,081 episodes, 333–1,323 per shard, in one to three cells per shard;
+   - P3a's two references, in one process, take about 0.35 h;
+   - then the status: about 1.0–1.1 h in all. With the references at twice O.2's alone rates, about 1.4 h.
+
+   The bound is a cap, not a target: the stage ends by itself, `COMPLETE`, when the evaluation is complete on disk. If E3 reaches the
+   bound, the longest unit that cannot stop is one reference cell, 500 episodes alone (about 8–13 min). So **E3 runs at most about
+   2 h 15 min**, and a fourth session, cleared from E3's records, would finish the rest.
+3. **Beside E3,** as P.3-5:
+   - no training and nothing else on the GPU;
+   - nothing memory-heavy;
+   - P9.1's own work one pytest process at a time, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`;
+   - P9.3 runs nothing.
+4. **The restart** is recorded here. P9.1's packet states it where it reports the evaluate sessions, as `restarts.log` has it: one
+   restart, `evaluate` shard 1, B.3.
+5. **The stall-file question** is answered (Q.2). Nothing follows from it.
+
+## Q.5 ✅ THE TOKEN: evaluate session E3, the last (the author's tmux `p91`)
+**E3 runs about 1 hour without a break, and at most about 2 h 15 min** (Q.4-2). It ends by itself.
+- **What it runs:**
+  - `declare-evaluation`, which finds the three manifests unchanged and writes nothing;
+  - the six `evaluate` shards, which find all 53 cells finished and end within a minute;
+  - the six `old-cells` shards, resuming from disk, to the end of the old cells (about 0.6–0.7 h);
+  - P3a's two registered references, in one process (about 0.35 h);
+  - the status, which finds the evaluation complete.
+- **Before it:**
+  - no other P9.1 stage runs, and nothing runs on the GPU;
+  - `output/p9_1_runs/STOP` does not exist;
+  - keep the laptop plugged in and awake.
+- **The command,** at the pane's prompt, as one line:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: E3 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_evaluate && P91_SESSION_HOURS=2 WORKERS=6 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh evaluate c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/evaluate_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+- **The pane** shows:
+  - the token line and the session line. Its "about 2 hours" is the bound; the work takes about 1 h;
+  - `declare_evaluation: ok`, and within a minute `evaluate: 6 shards ended cleanly`;
+  - after about 0.6–0.7 h, `old-cells: 6 shards ended cleanly`;
+  - after about 0.35 h more, `p3a_references: ok` and `stage evaluate <stamp>: COMPLETE (status …/status.json)`;
+  - then `DRIVER EXIT 0`.
+- **Done when** the capture shows those lines under E3's stamp and the pane shows `DRIVER EXIT 0`. A completed stage prints no
+  `left:` line.
+- **If E3 reaches its bound first,** the pane shows the `left:` line and `SESSION ENDED at the hours bound (2 h)` instead. The rest
+  is then cleared from E3's records.
+- **STOP, a failure, a stall and Ctrl+C:** as O.4. The guard restarts a stalled worker, as in E2 (Q.2). The restart line goes to
+  the shard's log, not the pane. An old-cell or reference episode that does not reproduce its committed value is a finding: the
+  worker fails, and nothing is re-run without a ruling.
+
+## Q.6 After E3, and meanwhile
+- **After E3:** the coordinator verifies it from disk, as in Q.1, now with the old cells complete, P3a's references, and the
+  evaluation's status complete.
+- **P9.1's commits `8ab9761` and `11616ea`** (Q18, F.2-4, G.2; Q19 and Q20 offered) are verified by the coordinator in their own
+  amendment, before G4, as P.5 said. The branch has no commit since `11616ea`.
+- **P9.3** waits for P9.1's merge (`BRIEF_48` J.9, J.11).
+
+---
+
+# ✅ AMENDMENT R — 2026-11-06, evening: evaluate session E3 VERIFIED from disk — P9.1's EVALUATE STAGE COMPLETE (one stall, in P3a's reference recording, restarted by B.3's guard as designed); the verification of P9.1's commits next, before G4
+
+## R.1 E3, verified from disk (read-only; the scripts printed counts, flags, provenance and seconds; no outcome value was read)
+- **The session** ran from the run tree at `c58afb8`, which its token line names:
+  - token at 16:25:11 CET (stage `20261106T152511Z`), deadline 18:25:11 (the 2-h bound);
+  - `declare-evaluation` at 16:25:11–16:25:12, which found the three manifests unchanged and wrote nothing;
+  - the six `evaluate` shards at 16:25:12–16:25:14, which found all 53 cells complete and skipped them (1.7 s);
+  - the six `old-cells` shards from 16:25:14. They resumed from disk: the skip over E2's episodes and the set-up took 1.6 s. They
+    ended after their last episodes, at 0.98–1.35 h (17:23:47–17:46:29), none stopped;
+  - P3a's two references in one process from 17:46:30, with one stall and restart (R.2). hz1x1's `behaviour@random` was written at
+    17:56:04 and the grid's `random@mappo1000` at 18:06:01;
+  - the status, complete. The capture's last line was written at 18:06:06: **1 h 41 min after the token** (Q.4-2: about 1.0–1.1 h;
+    R.3).
+
+  Under E3's stamp the capture holds exactly seven lines, in order: the token line, the session line, `declare_evaluation: ok`,
+  `evaluate: 6 shards ended cleanly`, `old-cells: 6 shards ended cleanly`, `p3a_references: ok` and `stage evaluate
+  20261106T152511Z: COMPLETE (status …/status.json)`. There is no `left:` line. The part above it, E1's and E2's, is unchanged: 1,738
+  bytes, as in E2's listing. The author's pane showed `DRIVER EXIT 0`.
+- **The 53 cells and the six shards,** written out by hand, equal the code's, as in P.1.
+- **Route (i): 53 of 53 cell files, none written in E3.** E1's 33 and E2's 20 were each checked again as in P.1. The 27 hz1x1 files
+  record `cuda` and one thread, with main's HEAD at the write: `25410f4` for E1's 7 and `4237cee` for E2's 20 (G.2).
+- **Route (ii): complete, none written in E3.** 13,500 hz1x1 and 13,000 grid episode files, every one declared, and **0 refused**.
+  Every check of Q.1 holds for every file. E1 wrote 14,405 of them and E2 12,095.
+- **P3a: 6 of 6 cells.** E1's and E2's four are unchanged, each 500 of 500 `==` route (i). E3's two are the registered references:
+  - **Their committed values were read by the coordinator's script itself,** apart from the module:
+    - hz1x1's `behaviour@random` from P4.6's `docs/data/p4_6_grid.json`, whose bytes in main equal the run tree's;
+    - the grid's `random@mappo1000` from `output/p5_1/eval_random.json`, at the digest `output/SHA256SUMS_p5_1.txt` lists for it (once),
+      last written on 2026-08-18.
+
+    Each is 500 episodes over the 5 × 100 held-out keys, and equals the module's reading (`_registered_reference_values`) in 500 of
+    500.
+  - **Each P3a file** has 500 episodes over those keys, with `att_ours ==` the committed value in 500 of 500. Every `n_decisions` is
+    positive, every sequence sha256 is well formed, and so are the 1 or 16 per-intersection sha256s. Its format, scenario, arm,
+    `registered_in` (A27(d)) and digest description are the module's.
+  - **Each has 5 distinct sequences, one per seed:** every seed's 100 draws share one 360-decision sequence. This is the registered
+    anchor's design, *"the registered random anchor is a five-schedule reference (`method_tier_grid._random_factory`, one generator
+    per draw from the training seed)"* (plan §8, 2026-10-15). A27(d) compares with both random references (3.4): this five-schedule
+    anchor, and `random_fresh`'s, whose two behaviour cells have 500 distinct sequences each (P.1, Q.1).
+- **The old cells: 18,200 of 18,200 episodes, 0 refused.** For every episode:
+  - it is declared, and its names are its file's;
+  - `reproduces_committed` is true, and `att_ours == committed_att_ours`;
+  - `committed_att_ours ==` its committed artifact's `att_horizon`;
+  - `att_engine` is a finite float;
+  - it was written after its session's old cells began.
+
+  The committed values were read twice and are equal in 38 of 38 cells: once by the module's `old_cell_committed` from the run tree's
+  `docs/data`, and once by the coordinator's script from main's. The three artifacts have the same bytes in both trees.
+
+  In each shard, E2 wrote the first 1,897–2,523 episodes of its order and E3 the rest, 333–1,323 (5,081 in all). So no episode was
+  skipped or rolled twice, and E2's 13,119 files are unchanged. Every episode whose policy is a checkpoint names a file that exists.
+  The behaviour cells without a checkpoint are `algorithmic` (600 episodes) or a `plan` (fixed time, 100).
+- **The status, recomputed, is complete,** and equals E3's `status.json`:
+  - route (i): 53 of 53 cells;
+  - route (ii): 13,500 of 13,500 hz1x1 and 13,000 of 13,000 grid episodes, none refused;
+  - P3a: 6 of 6 cells;
+  - old cells: 18,200 of 18,200 episodes, none refused;
+  - training: 255 of 255.
+- **The logs** hold only known lines, and no warning, error or traceback:
+  - each `evaluate` shard's log holds only the module's result: every cell of the shard evaluated (9, 9, 9, 9, 9, 8), none left,
+    none waiting, not stopped;
+  - each `old-cells` shard's log holds only progress lines, with `refused=0`, and the result: `rolled` equal to E3's files,
+    `skipped_already_present` equal to E2's, 0 refused, not stopped, 0 not reached;
+  - `p3a_references.log` holds the driver's restart line (R.2) and the result: 500 and 500 recorded, not stopped;
+  - `declare_evaluation.log` holds the three manifests' counts (13,500, 13,000, 18,200), and `status.err` is empty.
+
+  No STOP, token, `.partial` or `.tmp` file is left.
+- **The hz1x1 aggregates** (90 and 40 runs) equal their rebuild. They were last written in E2 (23:29:08) and not in E3, since route
+  (i) found every cell on disk.
+- **Nothing else changed.**
+  - Training: 255 of 255; no checkpoint or record was written after E1 began.
+  - Under `output/p9_1*`, against E2's listing: 40,308 of 40,314 paths are unchanged, and none was removed. The other 6 are:
+    - `output/p9_1_runs/` itself (the token, created and consumed);
+    - `logs/`, `old_cells/hz1x1/`, `p3a/hz1x1/` and `p3a/grid4x4/`, which gained E3's files;
+    - the capture, appended.
+
+    The 5,115 new paths are all E3's: the log directory with its 31 files, 5,081 old-cell episodes and 2 P3a files.
+  - Nothing else under `output/` was written after E2, and the corpus listing is unchanged.
+  - After E3, outside the sandbox, read-only: no P9.1, P9.3 or pytest process, and no compute process on the GPU.
+  - The run tree is clean at `c58afb8`. P9.1's branch is at `11616ea` and P9.3's at `12ebfcb`, both unchanged.
+
+## R.2 The stall in E3
+- **`p3a_references` stalled at 17:50:20,** in the first reference, hz1x1's `behaviour@random`.
+  - `p3a_references.stall0.txt` holds faulthandler's dump: 665 bytes, starting with the banner `Timeout (0:02:00)!`.
+  - Its 7 frames run, innermost first, `record_episode_actions` at line 841 (its call into `dt_gate.evaluate_arm`), `record_p3a`,
+    `record_registered_references` and `main`, with no Python frame below. That is E2's signature (Q.2), consistent with `DEFERRED`
+    104's destructor race.
+  - `restarts.log` holds one entry: restart 1 of at most 60, window 120 s, with the dumped stack, equal to the dump.
+  - `p3a_references.stall1.txt` (empty, 17:50:20) is the restarted worker's.
+  - The driver's restart line is in `p3a_references.log`. The pane shows only `run_logged`'s `p3a_references: ok`.
+- **B.3's guard worked as designed.**
+  - The worker started at 17:46:30. Its last progress came at about 17:48:20–17:48:30, so its first attempt did about 111–121 s of
+    work.
+  - The driver restarted it at 17:50:20, with no new token.
+  - The restarted worker rolled hz1x1's reference from scratch, in 343 s: P3a writes once per cell, so the first attempt left no
+    file. Then it rolled the grid's, in 597 s. Each is 500 of 500 `==` its committed value.
+  - The stall cost E3 about 4 min.
+- **Both stalls of the evaluate stage came in P3a's recording**, in `record_episode_actions`, which makes one `evaluate_arm` call per
+  episode. Both were in hz1x1's random-policy cells: `behaviour@random_fresh` in E2 and `behaviour@random` in E3. That is 2 stalls
+  in about 3,450 P3a episodes (the six cells and the two first attempts). Route (i), route (ii) and the old cells had none in about
+  71,200 episodes. E3's stall came with one process running, not under load.
+
+  This is an observation, not a diagnosis. It changes no value: every recorded episode reproduces its committed value under `==`, and
+  B.3's guard handles it. It goes into `DEFERRED` 104's record at P9.1's merge.
+
+## R.3 E3's hours against Q.4-2
+- **E3 took 1 h 41 min,** against Q.4-2's 1.0–1.1 h (about 1.4 h with slow references). It stayed inside its 2-h bound and completed
+  by itself.
+- **The overrun is one window, from about 16:30 to 17:15.**
+  - From 16:32 to 17:14 the six shards together completed 5–32 episodes a minute. Before 16:30 they completed 116–120 a minute,
+    and after 17:15, 147–162.
+  - Per episode, that is 8–11 times E2's own seconds on the same cells (the median of each 5-minute interval).
+  - At 17:15 the rate came back at once, with all six shards still running.
+- **Outside the window the projection held.**
+  - Before it (16:25–16:30), the cells ran at about 1.3 times E2's rates.
+  - The cells started after it ran at 0.75–0.99 of E2's rates, falling to about 0.7 as shards finished.
+  - P3a's references ran at 0.69 and 1.19 s per episode, against O.2's alone rates of 1.0 and 1.53.
+
+  The window cost about 40 min. Without it, the old cells took about 0.7 h, as Q.4-2 projected (0.62–0.72 h).
+- **The cause is not established from disk.**
+  - The slowdown follows the clock, not the cells: it struck all six shards and every family of cell at once, and began and ended
+    abruptly. That points to the machine (power, heat or another load), not to the run.
+  - The evaluate stage keeps no GPU or CPU trace.
+  - If the author knows what the laptop was doing between about 16:30 and 17:15 (Q.5 asked for it plugged in and awake), it is
+    recorded. Otherwise it stays unexplained.
+
+  **It changes hours, not values:** every episode in the window reproduces its committed value under `==`.
+
+## R.4 Rulings
+1. **E3 is verified, and P9.1's evaluate stage is COMPLETE.** All under the campaign's single engine seed 1000, with 0 refused
+   anywhere and every reproduction holding under `==`:
+   - route (i): 53 of 53 cells;
+   - route (ii): 26,500 of 26,500 episodes;
+   - P3a: 6 of 6 cells;
+   - the old cells: 18,200 of 18,200 episodes.
+
+   No further evaluate session runs, and nothing more runs from the run tree.
+2. **The restarts.** P9.1's packet states both where it reports the evaluate sessions, as `restarts.log` has them:
+   - E2: `evaluate` shard 1 (Q.2);
+   - E3: `p3a_references` (R.2).
+
+   Both were B.3's, both were in P3a's recording, and each P3a they touched was re-rolled from scratch and reproduces its value
+   under `==`.
+3. **The hours.** P9.1's packet reports the three sessions' hours as their captures have them: E1 4 h 05 min 35 s (P.1), E2 4 h 00 min
+   06 s (Q.1) and E3 1 h 40 min 55 s. It states E3's slow window as R.3 does: unexplained, and changing no value.
+4. **`DEFERRED` 104** gains R.2's observation at P9.1's merge.
+5. **Next: the verification of P9.1's commits, then G4.** The author runs nothing for P9.1 until G4 is cleared.
+
+## R.5 Next
+- **The coordinator** verifies P9.1's commits `8ab9761` and `11616ea` (Q18, F.2-4, G.2; Q19 and Q20 offered) in their own amendment,
+  S, from the repository's objects. Their tests run on the CPU only, one pytest process at a time, with `OMP_NUM_THREADS=1
+  MKL_NUM_THREADS=1`. G4 is cleared after S.
+- **P9.1's branch** stays at `11616ea` until then.
+- **`output/`:** nothing is moved or deleted. The stray `.claude` directories stay as recorded (N.2).
+- **P9.3** waits for P9.1's merge (`BRIEF_48` J.9, J.11).
+
+---
+
+# ✅ AMENDMENT S — 2026-11-06, night: P9.1's commits `8ab9761` and `11616ea` VERIFIED (Q18, F.2-4 and G.2 done as ruled); Q19 and Q20 answered, both YES; G4 CLEARED
+
+Your packet: §18 of `docs/returns/P9.1-campaign-ready.md` (`11616ea`, docs only), on `8ab9761`. The coordinator verified it after
+the evaluate stage was complete (Amendment R), from the repository's objects and a scratch clone.
+
+## S.1 The commits, verified (read-only; the real-tree check printed counts, flags, commits and digests, no value)
+- **The chain.** Since the run tree's `c58afb8` the branch has four commits:
+  - `9eb908a`, packet §17, docs only (Amendment F);
+  - `8ccea70`, a merge of main at `25410f4`. Outside `docs/` it changes only `CLAUDE.md` (main's four lines on machine B). Since the
+    merge base `fd035f6`, main gained no code under `offline/` or `tests/`; its only scripts are the four `docs/notes/machine_b`
+    files;
+  - `8ab9761`: `offline/corrective_report.py`, `offline/corrective_round.py` (a docstring), the fixture and three test files;
+  - `11616ea`: the packet's §18 and six evidence files, docs only.
+
+  No frozen path changed, and none of the four carries an AI trailer. `scripts/check_english.sh` and
+  `scripts/check_test_hygiene.sh` are clean on the changed files.
+- **F.2-4 is done.** With docstrings removed, `offline/corrective_round.py` at `11616ea` has the same AST as at `c58afb8` (the
+  coordinator's own `ast` script). So the campaign's code is unchanged in behaviour, and the report imports that module. The new
+  docstring names the three cases, and `run_status` refuses the second and the third as it says: a `.partial`, and a checkpoint
+  without its record.
+- **G.2 is done, as ruled.**
+  - `driver_sessions` reads every token line of every `<stage>_capture.txt`, in stamp order. It refuses a token line it cannot read
+    and a repeated stamp.
+  - `run_session` takes the latest session whose stamp is at or before the run's `started_unix`. It refuses a run before every
+    session, a run inside a session that trains nothing, and a run that finishes after the next session began.
+  - Every new run gains `code_commit`, `run_tree`, `session` and `code_commit_source`, and every artifact states
+    `CODE_COMMIT_RULE`. The report reads no checkpoint and no `runtime` field.
+  - **On the real tree,** by the coordinator's own reading of the files:
+    - its reading of the 14 token lines (collect 1, campaign 1, d4rl 1, train 8, evaluate 3) equals `driver_sessions`';
+    - its attribution of the 255 runs equals `run_session`'s in 255 of 255;
+    - runs #1–#3 go to the campaign stage at `cb61ee7` (`/home/filip/rltraffic-p91-run-c`), and #4–#255 to T1–T8 at `c58afb8`
+      (`/home/filip/rltraffic-p91-run-d`). The eight training sessions hold 62, 60, 29, 33, 24, 14, 10 and 20 runs, each a
+      contiguous range, as their plans said, and every run lies inside one training session.
+- **Q18 is done, as ruled (E.7, F.2-3).**
+  - The values come from each run record's `diagnostics` block; P9.1 read first that `train.log` has only 5,000-step means and no
+    AWR fraction.
+  - The block is labelled *"diagnostics, not registered statistics … no prediction, verdict, gate or decision reads them"*. It
+    defines its three fields (the last step's losses, not the log's means; the AWR fraction below 0.01 over at most 20,000 rows),
+    and only `p9_1_iql_targets.json` carries it, beside `d4rl`.
+  - **On the real tree:**
+    - the 70 `iql_t` rows equal the coordinator's own reading of the records, in order, and every value is finite;
+    - the 10 D4RL rows equal its reading of P8.3's committed file and of the re-run;
+    - the re-run's `compare_with.sha256` is the registered file's;
+    - the re-run's copy under `output/p9_1_runs/d4rl_outputs_20261028T192029Z/` has the original's bytes (sha256 `e168b203…`).
+- **The tests.**
+  - **The whole suite at `11616ea`,** in a scratch clone, in CI's setting (one process, one thread, CPU only, no corpus
+    variables): **3,983 passed, 3 failed, 275 skipped** in 993.5 s.
+    - The 3 failures are the tmux tests that the sandbox refuses (`error connecting to /tmp/tmux-1000/default (Operation not
+      permitted)`), as in F.1: `test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code` in
+      `test_p7_3c_campaign.py`, `test_p7_3c_corpus_driver.py` and `test_p7_3d_campaign_path.py`.
+    - Against F.1's run at `c58afb8` (3,956 passed, 3 failed, 273 skipped), the 29 new tests are 27 passed and 2 skipped. The 2 are
+      the fixture tree's new tests, which skip in CI's setting with its other eight: they need the main tree's `output/` and the
+      corpus, so they ran in the mutation run below, with the roots set.
+    - The clone's HEAD stayed at `11616ea`, with no tracked change.
+  - **Mutants,** run by the coordinator one at a time against a passing control (the three files, 37 passed in 68.9 s):
+    - P9.1's 19, applied exactly as `g4_q18_mutants.json` writes them: **19 of 19 killed**, each by the test its kill table names;
+    - the coordinator's own four:
+      - C1 (`driver_sessions` reads only the training captures) and C2 (the window chosen by the run's finish, not its start):
+        KILLED;
+      - C3 (a record of another tier accepted: the identity check without the tier) and C4 (an infinite value accepted: only NaN
+        refused): SURVIVED. Both are guards with no test of their own. On the real tree every record is its run's and every value
+        is finite (above), so neither changes a value here. S.2 makes both cases of Q19's tests.
+
+    Every file was restored and its sha256 checked. The clone was clean afterwards, and nothing under `output/`, the corpus or the
+    draws was written.
+- **The format stays `p9.1-report/1.0`,** as P9.1 proposed. No artifact has been written in it; the first ones are written at G4,
+  with every field, and the module docstring documents the additions.
+
+## S.2 Q19 and Q20, answered
+- **Q19: YES.** The block's traffic part covers every IQL-family run of the campaign, 115 in all:
+  - `iql_t`, 70 (hz1x1 50, the grid 20);
+  - the grid's `iql_m`, 25;
+  - hz1x1's `iql` and `iql_100k`, 10 each.
+
+  **Why.** E.7 asked for the D4RL cells in both target modes, and named `iql_t` on traffic because the fix was the question. But
+  `iql_m` trains with A27(c)'s targets too (A27(b) with A27(c)'s targets). And hz1x1's `iql` trains with the registered targets on
+  two of `iql_t`'s own tiers, `random_fresh` and `mix_m1000_m500`. So the extension gives the traffic part what the D4RL part
+  already has: both target modes, from the same trainer, read the same way. Without it the block would report a selection from a
+  set that exists in full. It is one arm set, and nothing else changes.
+  - Each row carries its arm and its `target_dropout`, read from its record's `diagnostics` block. A row is refused unless that
+    value equals its recipe's (`recipe_fields`).
+  - On the real tree all 115 records carry the three finite values, and every record's `target_dropout` equals its recipe's: `off`
+    for `iql_t` and `iql_m` (95 runs), `active` for `iql` and `iql_100k` (20) (the coordinator's real-tree check).
+  - The label, the field definitions and the placement do not change; the traffic part's key (`traffic_iql_t`) and its `source`
+    text are renamed to say what it now covers. The values stay diagnostics, and no verdict reads them.
+  - Tests first. They include the two cases the coordinator's surviving mutants found (S.1): a record of another tier, and an
+    infinite value, are both refused.
+- **Q20: YES. The evaluation names its code commit by G.2's rule.**
+  - All three evaluate sessions' token lines name `c58afb8` from `/home/filip/rltraffic-p91-run-d` (`evaluate_capture.txt`, lines 1, 7
+    and 14). So every evaluation output (route (i), route (ii), P3a, the old cells) was written by the code at `c58afb8`.
+  - **Every artifact carries:**
+    - `sessions`: the captures' sessions as `driver_sessions` reads them (stage, stamp, run tree, commit, capture line), 14
+      entries;
+    - `evaluation_code_commit`: the commit of every evaluate session, `c58afb8`, with its source lines.
+
+    The report refuses if the evaluate sessions name more than one commit or run tree: a per-output attribution would then be
+    needed, which the report does not attempt.
+  - Beside the `d4rl` section, and not inside it (that section stays the artifact byte for byte), `p9_1_iql_targets.json` names
+    the D4RL session: `d4rl 20261028T192029Z` at `cb61ee7` from `/home/filip/rltraffic-p91-run-c`.
+  - hz1x1's route (i) files carry `runtime.git_commit`, main's HEAD at the write: `25410f4` for E1's 7 and `4237cee` for E2's 20.
+    The grid's 26 carry no `runtime` block. The report reads no commit from them. If it mentions them, it calls them what they are
+    (`CODE_COMMIT_RULE`'s sentence), never the code's commit.
+  - The attribution is pure: it reads the captures' text only, never a file's time.
+  - Tests first, with mutants: two evaluate sessions with different commits accepted; the evaluation's commit taken from a route (i)
+    `runtime` field.
+
+## S.3 Rulings
+1. **P9.1's commits `8ab9761` and `11616ea` are verified:** Q18, F.2-4 and G.2 are done as ruled.
+2. **Q19 and Q20** are answered as S.2 says.
+3. **The format version stays `p9.1-report/1.0`.**
+4. **G4 is cleared** (S.4).
+
+## S.4 ✅ G4 CLEARED: the artifacts and the packet (P9.1's own session; no token, nothing in the author's tmux)
+**In order, on the branch:**
+1. **Merge main:** `git merge --no-edit main`, which brings docs only, as `8ccea70` did.
+2. **Build Q19 and Q20** (S.2), tests first: the red run for the right reason, then the code, then the mutants with their kill
+   table. Commit.
+3. **Run the whole suite** at that commit, in CI's setting: one process, `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`, CPU only, no
+   corpus variables. Then run the report's test files with the roots set (`RLTRAFFIC_OUTPUT_ROOT`, `RLTRAFFIC_CORPUS_V11`,
+   `RLTRAFFIC_DRAWS`), so that the fixture tree's tests, which skip in CI's setting, run too. Both tails go in the packet.
+   `scripts/check_test_hygiene.sh` and `scripts/check_english.sh` must be clean.
+4. **Run the report** from P9.1's worktree at that commit, with `git status --porcelain` empty, on the main roots and the D4RL copy:
+   ```
+   cd /home/filip/rltraffic-p91 && CUDA_VISIBLE_DEVICES= OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=/home/filip/rltraffic-p91 /usr/bin/time -v /home/filip/rltraffic/.venv/bin/python -P -m offline.corrective_report --repo-root /home/filip/rltraffic-p91 --output-root /home/filip/rltraffic/output --corpus-root /home/filip/rltraffic/datasets_v11 --draws-root /home/filip/rltraffic/scenarios/draws --d4rl /home/filip/rltraffic/output/p9_1_runs/d4rl_outputs_20261028T192029Z/p8_3_train_k64_40000_iql_t.json report
+   ```
+   - The git block is taken with `git -C <code root>` over tracked files (`tier_statements.git_block`), so it names the worktree's
+     commit, not dirty.
+   - The report writes the five artifacts to the worktree's `docs/data/` and nothing else. The listings of `output/p9_1*` and of the
+     corpus root, taken before and after and compared by program, must be unchanged.
+   - Its wall time and peak memory (`/usr/bin/time -v`) go in the packet. Nothing has timed it on the real tree: it reads about
+     45,000 episode files and the corpus's `random_fresh` tiers. If it passes 30 min or 8 GiB, stop it and report.
+   - A `REFUSED` line is reported as it is. Nothing is changed to make it pass.
+5. **Commit the five artifacts alone.** Their git block names step 2's commit, not dirty.
+6. **Run the T-regress on the real tree,** at that commit, with:
+   - `RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output`;
+   - `RLTRAFFIC_CORPUS_V11=/home/filip/rltraffic/datasets_v11`;
+   - `RLTRAFFIC_D4RL_OUT=/home/filip/rltraffic/output/p9_1_runs/d4rl_outputs_20261028T192029Z`.
+
+   The five tests that waited for the evaluation (`tests/test_corrective_report_load.py`) rebuild each artifact byte for byte. Their
+   pytest tail goes in the packet.
+7. **Write the packet,** `docs/returns/P9.1.md`, by `docs/returns/TEMPLATE.md`, with §5's G4 items:
+   - the real pytest tail, and `git diff --stat` against main;
+   - every kill table: M1's, the session control's, Q18 and G.2's, Q19 and Q20's, and the scorers' (§4.6);
+   - the AI-assistance record (`CLAUDE.md` §8);
+   - "For the paper": the new numbers beside the old, which registered verdicts moved, and which draft sentence changes (the
+     coordinator's note will state it). If the A27(g) ordering's verdict is NOT RESOLVED, the packet proposes the words and the
+     author rules them (B.2, Q7).
+
+   And, from the amendments:
+   - each run's code commit by its session (G.2), and the evaluation's (Q20). The checkpoints' and route (i)'s `runtime` commits
+     appear only as what they are;
+   - the IQL diagnostics block, labelled (E.7, Q18, Q19), and the `d4rl` section byte for byte, cited by its sha256 (E.7);
+   - the evaluate sessions:
+     - their hours: E1 4 h 05 min 35 s, E2 4 h 00 min 06 s, E3 1 h 40 min 55 s;
+     - both restarts, as `restarts.log` has them (Q.4-4, R.4-2);
+     - E3's slow window, as R.3 states it;
+   - every overlap and pause the amendments record for a run or a session, cited by amendment (the seconds are an uncontrolled
+     clock, A27(a)), and P9.3's smoke overlap if the trace shows one (D.2-2).
+8. **Report "P9.1 G4 ready"** with the packet's commit. G5 follows: the coordinator's one review, with at most one fix round and only
+   for findings that change a reported number or a claim, then the merge M2.
+
+**Throughout G4:**
+- CPU only, one pytest process at a time, one thread; nothing on the GPU.
+- Read-only on `output/`, the corpus and the run trees. No evaluation, roll or training is re-run, and nothing under `output/` is
+  written, moved or deleted.
+- **P9.1's session does not `cd` into `output/`** (N.2: the harness creates `.claude/.cc-writes` in its working directory). The run
+  directory's digest counts files only, so the two empty stray directories under `output/p9_1_runs/` (`.claude/` and
+  `d4rl_outputs_20261028T192029Z/.claude/`) do not enter it. They stay, as N.2 says.
+- P9.3 runs nothing (`BRIEF_48` J.9, J.11), and the author runs nothing for P9.1.
+
+**Done when** the five artifacts and the packet are committed on the branch, the packet holds every item above, and P9.1 reports
+"P9.1 G4 ready".
+
+## S.5 Next
+- **P9.1:** G4 (S.4).
+- **The coordinator:** G5; then the merge M2, `DEFERRED` 104's entry (R.4-4), and `BRIEF_48`'s amendment that clears P9.3's
+  old-cells (J.9).
+- **P9.3** waits for P9.1's merge.
+
+---
+
+# ⚠️ AMENDMENT T — 2026-11-06, late evening: G5 — P9.1's five artifacts (`c0daeb7`) and packet (`d3cd0c3`) VERIFIED by the coordinator's independent recomputation; ONE FIX ROUND: the committed p-value guard counts 771 pairs against its pinned 487, and its update to 771 is AUTHORISED (T.3); two of the packet's proposed sentences corrected in the coordinator's note (T.4); the merge M2 after the fix
+
+This is the coordinator's one review (G5; `PROJECT_PLAN` §7, the A27 round). It consisted of the coordinator's own scripts, with
+no reviewer mandate. They were read-only on `output/`, the corpus and the run trees, printed counts, flags, commits and digests,
+and compared their numbers with the artifacts' and the packet's by program.
+
+## T.1 What was verified
+- **The chain since `11616ea`:**
+  - `0cc17db`, the merge of `main` at `426e434`: its tree differs from `main`'s only in the branch's own paths;
+  - `9bda19f`, Q19 and Q20: `offline/corrective_report.py`, the fixture and three test files;
+  - `c0daeb7`: the five artifacts, alone;
+  - `d3cd0c3`: the packet and 17 evidence files, docs only.
+
+  None carries an AI trailer. On the branch, no frozen path and no existing `docs/data` file changed; the five are added. No
+  dependency was added. `check_english.sh` and `check_test_hygiene.sh` are clean on the 24 files changed since `11616ea`.
+- **Q19 and Q20, read against S.2:**
+  - `stage_code_commit` takes the one commit and run tree that every session of a stage names, from the captures' text only. It
+    refuses a stage with no session, and sessions that name more than one commit or run tree.
+  - Every artifact carries `sessions` and `evaluation_code_commit`. `p9_1_iql_targets.json` carries `d4rl_session` beside `d4rl`,
+    not inside it.
+  - `iql_family_diagnostics` takes every run whose recipe's base is IQL, and each row carries its arm and `target_dropout`.
+    Refused: a mode that is not its recipe's, a record of another tier, and a non-finite value.
+- **The records (part A):** every per-episode record of the five artifacts was compared with its raw source, under `==` in every
+  field:
+  - **26,500 new-cell records:** route (i)'s `att_horizon`, `episode_reward` and `horizon_vehicle_count`; route (ii)'s
+    `att_ours`, `att_engine` and the companions, each route (ii) file reproducing its committed value;
+  - **18,200 old hz1x1 records:** the committed P4.4, P4.6 and P4.7 artifacts' `att_horizon` on `main`, and the re-rolls'
+    `att_engine` and companions, each reproducing its committed `att_ours`;
+  - **14,500 grid records:** P5.1's, P5.2's and P5.2b's eval files, and P8.4b's rows (P5.2b's own rederivation rows for its
+    corrected IQL cell).
+
+  The three constructed mixture references (1,500 records) were not re-derived.
+- **The numbers (part B):**
+  - **292 paired blocks**, each recomputed within 1e-9 (per-draw means over the seeds, `ddof = 1`, 1.96 / √100): the mean, the
+    interval and the half-width, with `excludes_zero`, the sign, `n_draws` and the per-seed means.
+  - **Every verdict, by the registered rule as the script states it:**
+    - P5.2c's rule: 24 budget pairs, 8 mixture contrasts;
+    - Q6's window (B.2): 8 arm verdicts and the conjunctions;
+    - Q7's conjunction (B.2), each pair's direction the sign of its 40,000-step point difference: 4;
+    - A6's branches, at δ = 0.6263 and at the derivation's full precision: 8;
+    - the collapse rule: 80 verdicts and 8 counts;
+    - the side of zero of the nine behaviour comparisons with IQL.
+  - **P3a, from the P3a files:**
+    - 0 of 500 episodes repeat on each scenario, per intersection on the grid;
+    - the beside-table holds: distinct sequences, most common share, identity with each reference, and the grid's
+      per-intersection counts.
+  - **The exposure table** equals A27(b)'s constants as exact fractions.
+  - **The plateau counts:**
+    - the author's registered command prints `160 127 111 11 5`;
+    - 28 of the 40 runs are plateaued at 100,000 steps.
+  - **The D4RL section:**
+    - it equals the re-run file's `compare_with` block;
+    - its six contrasts follow from the per-seed returns (1.96 / √5).
+  - **The re-scores' bookkeeping, over 82 and 44 statements:**
+    - every input is the original input with the declared substitution;
+    - a verdict moves iff its decision changed;
+    - every original decision is the committed `p5_2_statements.json`'s;
+    - `n_statements`, `n_moved`, and A6's and P1's `moved` flags hold.
+- **Provenance (part C):**
+  - Each artifact's format is `p9.1-report/1.0`, its git block `9bda19f` and not dirty, with A27(a)'s label and the uncontrolled
+    clock.
+  - The 14 sessions equal the coordinator's own parsing of the captures in every field.
+  - `evaluation_code_commit` is `c58afb8`, from `evaluate_capture.txt` lines 1, 7 and 14.
+  - **Training runs:**
+    - each of the 275 new-run rows (255 runs) lies inside one training session, at its session's commit, run tree and stamp:
+      3 at `cb61ee7` and 272 at `c58afb8`;
+    - their seconds, steps, start and finish equal the records;
+    - 290 rows of P5.1 and P5.2 grid runs carry no seconds, with the artifact's note (no committed record holds them, plan D3).
+  - **Inputs:**
+    - the 65 listed input files were recomputed and are equal;
+    - so are the 10 directory digests: `output/p9_1_runs` without `checkpoints` and `logs` (45,029 files), and `output/p9_1`
+      (5).
+  - **The IQL diagnostics:**
+    - the 115 rows equal their records, target modes included: the grid's `iql_m` off 25 and `iql_t` off 20; hz1x1's `iql_t`
+      off 50, `iql` active 10 and `iql_100k` active 10;
+    - every IQL-family record has a row.
+- **The packet's numbers (part D):**
+  - the 82 values §10 quotes for the paper were recomputed, and all are equal at two decimals;
+  - the matched DT − BC interval's upper end is above zero unrounded, so "does not survive" holds;
+  - at 40,000 steps only DT − BC is unresolved on `mappo1000`, and only DT − %BC on `mix50`;
+  - the mixture's measured order resolves at %BC < DT, and not at IQL–%BC or DT–BC.
+- **§8's claims:**
+  - the 255 runs are serial;
+  - `trace_covered` is false on exactly #65, #125, #154, #187, #211, #225, #235 and #255, each the last run of a training
+    session;
+  - no run paused;
+  - runs #1–#3 lie entirely inside P9.3's smoke window (`P9.3-smoke.md`: 15:38:57 → 17:22:23 CET): 345.6 + 350.7 + 356.9 =
+    1,053.2 s.
+- **The Definition of Done's registered files:**
+  - all 20,904 entries of the 23 `output/SHA256SUMS_*.txt` equal the files on disk (2.95 GiB);
+  - since E3's verification, `output/p9_1*` (45,429 paths) and `datasets_v11` (17,040) are unchanged: no path added, removed or
+    changed in kind, size or time.
+- **The T-regress in a scratch clone at `d3cd0c3`** (`RLTRAFFIC_OUTPUT_ROOT`, `RLTRAFFIC_CORPUS_V11`, `RLTRAFFIC_D4RL_OUT`
+  set): `5 passed, 20 deselected in 40.10s`. Every artifact rebuilds byte for byte, and the clone stays clean.
+- **The whole suite at `d3cd0c3`,** in that clone, in CI's setting (one process, one thread, CPU only, no `RLTRAFFIC_*`
+  variable): `4 failed, 3994 passed, 276 skipped, 30 warnings in 981.70s (0:16:21)`. Three failures are the sandbox's tmux
+  refusals (F.1, S.1). The fourth is `tests/test_erfc_determinism.py::test_the_committed_p_values_all_still_reproduce_exactly`:
+  `assert 771 == 487` (T.2-1). P9.1's run at `9bda19f` (3,995 passed, 3 failed) predates the artifacts, and this test reads
+  them, so this one test is the whole difference.
+
+## T.2 Findings
+1. **The committed p-value guard fails on the merge candidate** (the suite's state, a claim of §3; **the fix round**).
+   - `test_the_committed_p_values_all_still_reproduce_exactly` walks every artifact under `docs/data`. It pins the number of
+     `(z, p_value)` pairs at 487 and asks for a deliberate, authorised update when artifacts are added.
+   - The five add 284, all two-sided Wilcoxon blocks.
+   - The coordinator ran the guard's own walk and `_expected_p_value` over the clone's `docs/data` at `d3cd0c3`:
+     - 771 pairs: the 487 outside `p9_1_*`, unchanged, and the 284;
+     - none of the 284 carries an `alternative` key, so `ONE_SIDED_PAIRS` stays as it is;
+     - none has `z = 0.0` and `p = 1.0`, so there is no empty test;
+     - **all 771 reproduce under `==`.**
+
+   No published p-value moves; only the count fires. `main` must not receive a red test, so the merge waits for the update.
+2. **A27(b)'s proposed sentence counts what it does not name** (a claim).
+   - *"Of the 32 registered grid verdicts that contrast a DT with a baseline"*: the 32 are every verdict the re-score covers.
+     Read from their inputs:
+     - 25 hold a baseline re-trained at matched exposure. 11 of them also hold a DT: Q1, Q2a ×3, Q2b ×3, Q2b.aggregate and
+       Q3a ×3. The other 14 compare the BC variants with each other: Q5a, Q5b, Q5c and their aggregates.
+     - 7 hold no re-trained arm and cannot move: Q1b ×2 and Q1b.both, the behaviour policy's instrument check; Q3b ×3 and
+       Q3b.aggregate, the DT against its own behaviour policy.
+   - Q1 compares each cell with its prediction, not one arm with another.
+   - The sentence must state N by what it counts, and T.4 does. No artifact changes: the statements carry their inputs.
+3. **A27(d)'s proposed sentence mixes two sign conventions** (a claim).
+   - *"IQL's lead over the DT on random data is −245.02 [−251.18, −238.85] on hz1x1 …, against leads of 40.03 [37.91, 42.14]
+     and 56.78 [53.90, 59.67] s"*: a signed difference stands beside magnitudes.
+   - It reads as IQL trailing on hz1x1, the opposite of the measurement: `iql − dt` = −245.02, IQL better.
+   - T.4 uses one convention, with magnitudes in words.
+4. **A label only** (`DEFERRED` 124). `p9_1_iql_targets.json`'s `p5_2_rescore.rule` opens *"A27(b):"*.
+   - The text is the `MOVED_RULE` constant, shared with A27(b)'s re-score, but the block is A27(c)'s IQL re-score (`iql` →
+     `iql_t`).
+   - It changes no number, verdict or claim.
+
+No finding changes a number or a verdict in the artifacts, and they stay final at `c0daeb7`. T.2-1 is the one fix round. T.2-2
+and T.2-3 are in text the brief gives the coordinator to state (G4: *"the coordinator's note will state it"*), so T.4 corrects
+them. T.2-4 is parked.
+
+## T.3 The authorisation for the fix round, to be quoted verbatim in the test
+> *"test_erfc_determinism 487 -> 771 AUTHORISED (BRIEF_46 Amendment T, T.3, 2026-11-06), same footing as BRIEF_29 section 1 B,
+> the 2026-09-10 authorisation, BRIEF_42 Amendment E.1 and BRIEF_45 Amendment B.2. The 284 are P9.1's two-sided Wilcoxon blocks
+> in its five A27 artifacts (docs/data/p9_1_*.json, committed at c0daeb7), enumerated by the guard's own paths:
+> p9_1_random_fresh.json 122, p9_1_iql_targets.json 74, p9_1_budget.json 64, p9_1_mixture.json 16 and
+> p9_1_exposure_parity.json 8. None carries an alternative key, so ONE_SIDED_PAIRS is unchanged; none has n_used = 0; all 771
+> reproduce under == through _expected_p_value (the coordinator's run of the guard's own walk at d3cd0c3)."*
+
+**The 284, by the guard's own path classes.** `{d}` is `{att_engine,att_ours}`, every path begins with its artifact's name, and the
+48 classes are folded by their braces:
+
+| artifact | path class | pairs |
+|---|---|---|
+| `p9_1_random_fresh.json` | `.collapse.{hz1x1,grid4x4}.{original_random_tier,random_fresh_tier}.rows[*].by_definition.{d}.paired_comparison.wilcoxon` | 80 |
+| | `.q6_both_anchors.{random_fresh,registered_five_schedule}[*].numbers.paired_comparison.wilcoxon` | 32 |
+| | `.p3b.contrasts[*].by_definition.{d}.paired_comparison.wilcoxon` | 10 |
+| `p9_1_iql_targets.json` | `.iql_behaviour_comparisons.comparisons[*].{original,rescored}.{d}.wilcoxon` | 36 |
+| | `.hz1x1.tiers[*].by_definition.{d}.paired_comparison.wilcoxon` | 16 |
+| | `.grid4x4.tiers[*].by_definition.{d}.paired_comparison.wilcoxon` | 8 |
+| | `.grid4x4_exposure_against_dropout.tiers[*].by_definition.{d}.paired_comparison.wilcoxon` | 8 |
+| | `.hz1x1_iql_lead_on_random[*].by_definition.{d}.paired_comparison.wilcoxon` | 4 |
+| | `.grid4x4_original_random_beside.by_definition.{d}.paired_comparison.wilcoxon` | 2 |
+| `p9_1_budget.json` | `.tiers.{mappo1000,mix50}.concordance.{d}.pairs[*].{at_40k,at_100k}.paired_comparison.wilcoxon` | 48 |
+| | `.tiers.{mappo1000,mix50}.differences[*].by_definition.{d}.paired_comparison.wilcoxon` | 16 |
+| `p9_1_mixture.json` | `.predictions.orderings.contrasts[*].by_definition.{d}.paired_comparison.wilcoxon` | 8 |
+| | `.predictions.within_5_s.arms[*].by_definition.{d}.paired_comparison.wilcoxon` | 6 |
+| | `.beside.iql_t_within_5_s.arms[*].by_definition.{d}.paired_comparison.wilcoxon` | 2 |
+| `p9_1_exposure_parity.json` | `.sentence_contrasts.{original,matched}[*].by_definition.{d}.paired_comparison.wilcoxon` | 8 |
+
+**What changes, and nothing else:**
+- the literal 487 → 771;
+- the comment above it, with the quotation and the table;
+- the assertion's message, which names the source of the 284 as the earlier ones do.
+
+The walk, `ONE_SIDED_PAIRS`, `_expected_p_value` and the `moved == []` assertion stay untouched, so all 771 are still recomputed and
+compared under `==`. This is a spec change ruled by the coordinator, not a test weakened to pass: the guard asked for a deliberate
+update, and this is it.
+
+## T.4 The sentences, as the coordinator's note states them
+A27's sentences are the author's. On 2026-11-06 the author accepted P9.1's three proposals, for A27(b), (d) and (g), *"unless your G5
+review finds a problem with them"*. T.2 found one in (b) and one in (d), so those two are the coordinator's corrections and the
+author rules them. The values are under `att_engine`, with `att_ours` beside in the artifacts (A27(a)).
+- **A27(b)** (corrected: the end changes from P9.1's proposal):
+  > *"With BC, %BC and IQL seeing each training decision as often as the DTs do (711 times; 708 for the two %BC arms), the DT's
+  > lead on mappo1000 survives against IQL but not against BC under the registered rule: DT − BC = −0.73 [−1.46, +0.01] and
+  > DT − IQL = −19.02 [−22.68, −15.37] (the DT without spatial mixing against BC and IQL at matched exposure; the DT-versus-IQL
+  > contrast still differs in return scaling, per intersection for the DT and global for IQL); of the 25 registered grid
+  > verdicts that a matched-exposure baseline enters, 11 of them beside a DT, none changes under exposure parity."*
+- **A27(c)** (the registered branches filled, as in the packet):
+  > *"Computing IQL's targets without dropout changes its travel time by −21.39 to +374.15 s across the 12 tiers, with a paired
+  > CI that excludes zero on 11 of them; these registered verdicts move: P4.4's A6, from baseline genuinely better to
+  > inconclusive at this power; on the D4RL calibration the BC − IQL difference in raw return becomes +3554.20 [3163.06,
+  > 3945.34], against −542.05 [−1668.10, 584.01] before the fix."*
+- **A27(d)** (corrected: the values are unchanged, and the hz1x1 lead is stated as a magnitude like the others):
+  > *"On random tiers collected with 200 distinct schedules (the original hz1x1 and grid tiers each replay two), the DT is not
+  > open-loop on either scenario: no seed emits the same action sequence on two of the 100 held-out draws; IQL's lead over the
+  > DT on random data is 245.02 [238.85, 251.18] s on hz1x1, while on the grid IQL now trails the DT by 66.31 [61.24, 71.38] s,
+  > against leads of 40.03 [37.91, 42.14] and 56.78 [53.90, 59.67] s on the original tiers (the tiers also differ in their
+  > normalisation basis, and on the grid IQL now also has matched exposure and dropout-free targets)."*
+- **A27(e)** (the measured-order branch filled, as in the packet):
+  > *"On hz1x1's 50/50 mixture of mappo1000 and mappo500 streams, the only one of six candidate pairs whose top decile the
+  > filter takes from both sources (14 of 20 from the stronger), the held-out travel-time order is IQL < %BC < DT < BC by point
+  > estimate, with IQL–%BC and DT–BC not resolved: %BC − BC = −1.76 [−2.27, −1.25] (HELD) and DT − BC = −0.08 [−0.40, +0.25]
+  > (NOT RESOLVED); every arm stays within 5 s of %BC."*
+- **A27(g)** (P9.1's proposal, as the author accepted it; G5 found no problem):
+  > *"On hz1x1's mappo1000 tier, 100,000 instead of 40,000 gradient steps (A8(b)'s secondary) change the travel time of DT, BC,
+  > %BC and IQL by −0.13 [−0.35, 0.10], −0.28 [−0.51, −0.04], −0.03 [−0.22, 0.16] and +1.06 [0.84, 1.28] s; of their six
+  > pairwise orderings, the five that the 40,000-step cells resolve keep their direction and none reverses, while DT and BC,
+  > which the 40,000-step cells did not separate (−0.20 [−0.46, 0.07] s), stay unseparated at 100,000 steps (−0.04 [−0.33,
+  > 0.24] s); so on this tier the 40,000-step ordering is not shown to be a budget artefact; on mix50, an exploratory extension
+  > beyond A8(b), the ordering is unchanged."*
+
+## T.5 Rulings
+1. **G5: one fix round, T.2-1 only.** Everything else was verified as T.1 states. No number or verdict changes, and the five
+   artifacts stay final at `c0daeb7`, with no rebuild.
+2. **The fix round, by P9.1 in its own session.** No token; CPU only; one pytest process at a time, one thread; read-only on
+   `output/`, the corpus and the run trees; no `cd` into `output/`. In order:
+   1. `git merge --no-edit main`: this amendment and the plan, docs only.
+   2. T.3's change to `tests/test_erfc_determinism.py`, and nothing else. Commit it.
+   3. **The whole suite at that commit, in CI's setting.** Expect only the sandbox's three tmux refusals. Then the report's test
+      files with the roots set, and the T-regress (`RLTRAFFIC_D4RL_OUT` set): the artifacts unchanged, byte for byte.
+      `scripts/check_test_hygiene.sh` on the changed test.
+   4. **A section in the packet, docs only:**
+      - the fix's commit;
+      - the guard's own run: 771 pairs, 0 moved;
+      - the real pytest tails of step 3;
+      - `git diff --stat` against `main`.
+   5. Report "P9.1 fix round done" with the commits.
+3. **Then the coordinator verifies the fix and merges M2:**
+   - verify the fix commit's diff, then the whole suite at the branch's head;
+   - merge with `--no-ff`, §6's P9.1 box ticked in the merge commit;
+   - the merge commit also carries plan v3.46, `DEFERRED` 104's observation (R.4-4), 124 (T.2-4), and an attributed coordinator
+     note at the head of the packet's §10, pointing its (b) and (d) proposals to T.4.
+4. **The sentences:** T.4 states them. The (b) and (d) corrections wait for the author's ruling, and (g) stands as accepted.
+5. **After the merge:** the CI ceiling, measured on the merge's CI run and handed to the author as a patch by the registered
+   route; and `BRIEF_48`'s amendment that clears P9.3's old cells (J.9), naming the merge commit and pinning the two artifacts'
+   sha256.
+
+## T.6 The coordinator's error
+S.4 ordered the whole suite (step 3) before the five artifacts were committed (step 5). The suite therefore never ran on a tree that
+held them, and the guard that reads every committed artifact could fire only after step 5. The T-regress ran after them, but the
+whole suite did not. T.5-2 runs it at a head that holds the artifacts. It changes no number.
+
+## T.7 Next
+- **P9.1:** the fix round (T.5-2).
+- **The author:** rule T.4's (b) and (d) corrections; relay T.5-2 to P9.1.
+- **The coordinator:** after "P9.1 fix round done", the verification and the merge M2 (T.5-3); then the CI ceiling and `BRIEF_48`'s
+  amendment (T.5-5).
+- **P9.3** waits for P9.1's merge.
+
+---
+
+# ✅ AMENDMENT U — 2026-11-07, after midnight: G5's fix round VERIFIED (`aeb0217`, `1cc87d9`); T.4's corrected sentences ACCEPTED by the author; G5 PASSED; P9.1 MERGED (M2), §6 ticked
+
+## U.1 The fix round, verified
+- **The chain since `d3cd0c3`:**
+  - `8172676`, the merge of `main` at `80f1387`: its tree differs from `main`'s only in the branch's own paths;
+  - `aeb0217`: `tests/test_erfc_determinism.py` only;
+  - `1cc87d9`: the packet's §17 and four evidence files, docs only.
+
+  None carries an AI trailer, and the five artifacts are unchanged since `c0daeb7`.
+- **`aeb0217` is T.3's change and nothing else.**
+  - **By AST,** the only statement of the module that differs is the guard's count assertion: 487 → 771, with its message. The
+    compared expression is unchanged.
+  - **T.3's quotation** is reproduced verbatim (689 characters, compared by program), with T.3's table of the 284.
+  - **Untouched:** the walk, `ONE_SIDED_PAIRS`, `_expected_p_value` and the `moved == []` assertion.
+- **In the coordinator's clone at `1cc87d9`:**
+  - `tests/test_erfc_determinism.py`: `57 passed`;
+  - the T-regress: `5 passed`, every artifact byte for byte;
+  - `check_test_hygiene.sh` and `check_english.sh` clean on the changed files;
+  - the whole suite in CI's setting: `3 failed, 3995 passed, 276 skipped, 30 warnings in 975.62s (0:16:15)`; the three failures are the sandbox's tmux refusals.
+- **The packet's §17** records the fix, the guard's own run (771 pairs, 0 moved) and the tails, with T.2-2 and T.2-3 as P9.1's
+  errors.
+
+## U.2 Rulings
+1. **The fix round is complete: G5 PASSED.**
+2. **The author's ruling** (2026-11-06, night): *"I accept the corrected A27(b) and A27(d) sentences as you wrote them."* T.4's
+   five sentences are A27's filled sentences:
+   - (b) and (d) as corrected;
+   - (c) and (e) as filled;
+   - (g) as P9.1 proposed it and the author accepted it.
+3. **P9.1's question (§17)** concerns the guard's docstring, which still opens *"487 published p-values (322 -> 330 -> 339 ->
+   351 -> 487)"*.
+   - T.3 did not list that line. It was the coordinator's omission: the earlier authorisations moved the line with the literal.
+   - It changes no number and no check, so it is `DEFERRED` 125. The next authorised change of the count closes it, updating the
+     line with the literal.
+4. **Merge M2,** now: `--no-ff`, with §6 ticked. The merge carries:
+   - this amendment and plan v3.46;
+   - `DEFERRED` 104's observation (R.4-4), 124 (T.2-4) and 125 (U.2-3);
+   - the coordinator's attributed note at the head of the packet's §10.
+5. **Next:** `BRIEF_48`'s amendment that clears P9.3's old cells (J.9), in the same push, and the CI ceiling, measured on that
+   push's run.
+
+## U.3 Next
+- **The author:** relay `BRIEF_48`'s new amendment to P9.3, and apply the CI ceiling patch when the coordinator hands it over.
+- **The coordinator:** the CI ceiling.
+- **P9.1:** done. Its worktree `/home/filip/rltraffic-p91` and the run trees stay until the author rules otherwise.

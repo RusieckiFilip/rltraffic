@@ -1,0 +1,154 @@
+"""BRIEF_46 Amendment C, C.4.3 -- the evaluation smoke, where it needs no code change.
+
+Each of the 53 new evaluation cells, ONE episode (seed 101, held-out draw 1000), both routes, ``att_ours`` equal under
+``==``, on the training smoke's checkpoints in the scratch root.  ``offline.a27_arms.recipe`` is wrapped to ``steps=2``
+as in the training smoke, so every loader and route-(i) argv sees the budget the checkpoints were trained at.
+
+* grid4x4 (26 cells): route (i) is the REAL CLI as G2's pre-flight ran it -- ``route_i_command`` on the scratch roots,
+  ``--seeds 101``, the reuse root and checksums re-pointed at the main tree's read-only P5.1 copies, inside
+  ``iql_correction.narrowed_held_out_draws([1000])``; route (ii) is ``corrective_round.run_route_ii`` with route (i)'s
+  value as ``committed`` (it refuses unless ``att_ours`` is equal under ``==``).
+* hz1x1 (27 cells): the CLI (``method_tier_grid evaluate``) refuses a cell with fewer than five trained seeds and binds
+  the held-out pool at import, so it cannot evaluate one seed on one draw without a code change.  Route (i) is its INNER
+  call: ``dt_gate.evaluate_arm`` with the CLI's own factory (``method_tier_grid.cell_factory`` on the run record's
+  checkpoint and the tier's typed target; ``a27_arms.fresh_random_factory`` for the behaviour cell) and the CLI's rollout
+  settings (``corrective_round._evaluate_kwargs``); route (ii) is ``run_route_ii`` as on the grid.
+* P3a (6 cells): ``corrective_round.record_episode_actions`` on the same episode, reproducing route (i)'s value
+  (the two registered references against their committed values, read from the main tree).
+* Old cells (38, beyond C.4.3's minimum): one episode each through P8.4b's route (``att_rederivation.run_campaign``, its
+  default builder, the main tree's registered checkpoints read-only), reproducing the committed ``att_ours``.
+
+Writes only under SCRATCH.  Usage: python -P smoke_eval.py REPO SCRATCH_OUTPUT_ROOT
+"""
+from __future__ import annotations
+
+import dataclasses
+import json
+import sys
+import time
+import traceback
+from pathlib import Path
+
+repo, scratch = Path(sys.argv[1]), Path(sys.argv[2])
+sys.path.insert(0, str(repo))
+
+import offline.a27_arms as a27  # noqa: E402
+
+registered = a27.recipe
+a27.recipe = lambda scenario, arm: dataclasses.replace(registered(scenario, arm), steps=2)
+
+import offline.corrective_round as cr  # noqa: E402
+import offline.method_tier_grid as grid  # noqa: E402
+import offline.tier_sweep as ts  # noqa: E402
+from offline import att_rederivation as ar  # noqa: E402
+from offline.admission_probe import ProbeRoots  # noqa: E402
+from offline.dt_gate import evaluate_arm  # noqa: E402
+from offline.iql_correction import narrowed_held_out_draws  # noqa: E402
+
+MAIN = Path("/home/filip/rltraffic")
+SEED, DRAW = 101, 1000
+roots = cr.Roots(repo_root=repo, output_root=scratch, corpus_root=MAIN / "datasets_v11", draws_root=MAIN / "scenarios/draws")
+main_roots = cr.Roots(repo_root=repo, output_root=MAIN / "output", corpus_root=MAIN / "datasets_v11",
+                      draws_root=MAIN / "scenarios/draws")
+rows: list[dict] = []
+
+
+def route_i_grid(cell: cr.Cell) -> dict:
+    name, argv = cr.route_i_command(roots, cell)
+    assert name == "tier_sweep"
+    argv[argv.index("--reuse-root") + 1] = str(MAIN / "output" / "p5_1")
+    argv[argv.index("--checksums") + 1] = str(MAIN / "output" / "SHA256SUMS_p5_1.txt")
+    argv = [*argv[: argv.index("evaluate")], "--seeds", str(SEED), *argv[argv.index("evaluate"):]]
+    with narrowed_held_out_draws([DRAW]):
+        if ts.main(argv) != 0:
+            raise RuntimeError(f"route (i) (tier_sweep evaluate) failed on {cell.key}")
+    payload = json.loads((Path(roots.runs_root) / "eval_i" / "grid4x4" / f"eval_{cell.tier}_{cell.arm}_seed{SEED}.json")
+                         .read_text(encoding="utf-8"))
+    return cr.committed_from_route_i(payload, "grid4x4", cell.key)
+
+
+def route_i_hz1x1(cell: cr.Cell) -> dict:
+    kwargs = cr._evaluate_kwargs(roots, "hz1x1", cell.tier)
+    if cell.arm == "behaviour":
+        factory = a27.fresh_random_factory(SEED, scenario_key=cr.SCENARIO_KEYS["hz1x1"], draws_root=str(roots.draws_root),
+                                           draw_ids=[DRAW])
+    else:
+        record = json.loads(cr.run_record_path(roots, "hz1x1", cell.tier, cell.arm, SEED).read_text(encoding="utf-8"))
+        factory = grid.cell_factory(cell.arm, record["checkpoint"], int(a27.recipe("hz1x1", cell.arm).steps),
+                                    float(grid.tier_spec(cell.tier).target_rtg), None)
+    results = list(evaluate_arm(arm=cell.key, seed=SEED, draw_ids=[DRAW], choose_action_factory=factory, **kwargs))
+    assert len(results) == 1
+    return {("hz1x1", cell.key, SEED, DRAW): float(results[0].att_horizon)}
+
+
+started = time.time()
+values_by_cell: dict = {}
+for cell in cr.evaluation_cells():
+    t0 = time.time()
+    entry = {"scenario": cell.scenario, "cell": cell.key}
+    try:
+        values = route_i_grid(cell) if cell.scenario == "grid4x4" else route_i_hz1x1(cell)
+        assert len(values) == 1, values
+        outcome = cr.run_route_ii(roots, cell.scenario, [ar.CellKey(*key) for key in values], values)
+        (key, att), = values.items()
+        values_by_cell[(cell.scenario, cell.key)] = att
+        entry.update({"att_ours_route_i": att, "route_ii_refused": outcome["n_refused"], "equal": outcome["n_refused"] == 0,
+                      "route_i_kind": "CLI" if cell.scenario == "grid4x4" else "inner call", "seconds": time.time() - t0})
+    except Exception as exc:  # reported, never worked around
+        entry.update({"error": f"{type(exc).__name__}: {exc}", "trace": traceback.format_exc()[-1500:],
+                      "seconds": time.time() - t0})
+    rows.append(entry)
+    print(json.dumps({k: v for k, v in entry.items() if k != "trace"}), flush=True)
+
+p3a = []
+for cell in cr.p3a_cells():
+    entry = {"scenario": cell.scenario, "cell": cell.key}
+    try:
+        if cell in cr.REGISTERED_RANDOM_REFERENCES:
+            committed = cr._registered_reference_values(main_roots, cell)
+            key = min(k for k in committed if k[2] == SEED and k[3] == DRAW) if any(
+                k[2] == SEED and k[3] == DRAW for k in committed) else sorted(committed, key=lambda k: (k[2], k[3]))[0]
+            expected = {(int(key[2]), int(key[3])): float(committed[key])}
+            seed, draw = int(key[2]), int(key[3])
+        else:
+            seed, draw = SEED, DRAW
+            expected = {(SEED, DRAW): values_by_cell[(cell.scenario, cell.key)]}
+        recorded = cr.record_episode_actions(cell.key, seed, [draw], cr._p3a_factory(roots, cell, seed),
+                                             expected=expected,
+                                             evaluate_kwargs=cr._evaluate_kwargs(roots, cell.scenario, cell.tier))
+        entry.update({"episodes": len(recorded), "reproduced": True,
+                      "action_sequence_sha256": recorded[0]["action_sequence_sha256"][:12]})
+    except Exception as exc:
+        entry.update({"error": f"{type(exc).__name__}: {exc}", "trace": traceback.format_exc()[-1500:]})
+    p3a.append(entry)
+    print(json.dumps({k: v for k, v in entry.items() if k != "trace"}), flush=True)
+
+old = []
+work = scratch / "old_cells_smoke"
+work.mkdir(parents=True, exist_ok=True)
+probe = ProbeRoots(repo_root=repo, corpus_root=MAIN / "datasets_v11", draws_root=MAIN / "scenarios/draws",
+                   output_root=MAIN / "output", work_dir=work)
+for artifact, arm in cr.HZ1X1_OLD_CELLS:
+    entry = {"artifact": artifact, "arm": arm}
+    try:
+        committed = cr.old_cell_committed(repo, artifact, arm)
+        key = sorted(committed, key=lambda k: (-1 if k[2] is None else k[2], k[3]))[0]
+        outcome = ar.run_campaign([ar.CellKey(*key)], roots=probe, engine_seed=cr.ENGINE_SEED, device=None,
+                                  committed={key: committed[key]}, protected=(), factory_builder=None)
+        entry.update({"seed": key[2], "draw": key[3], "refused": outcome["n_refused"],
+                      "reason": outcome["refused"][0]["reason"] if outcome["n_refused"] else None})
+    except Exception as exc:
+        entry.update({"error": f"{type(exc).__name__}: {exc}", "trace": traceback.format_exc()[-1500:]})
+    old.append(entry)
+    print(json.dumps({k: v for k, v in entry.items() if k != "trace"}), flush=True)
+
+summary = {
+    "new_cells": len(rows), "new_cells_equal": sum(bool(r.get("equal")) for r in rows),
+    "new_cells_failed": [r for r in rows if not r.get("equal")],
+    "p3a": len(p3a), "p3a_reproduced": sum(bool(r.get("reproduced")) for r in p3a),
+    "p3a_failed": [r for r in p3a if not r.get("reproduced")],
+    "old_cells": len(old), "old_cells_reproduced": sum(r.get("refused") == 0 for r in old),
+    "old_cells_failed": [r for r in old if r.get("refused") != 0],
+    "wall_seconds": time.time() - started,
+}
+print("SUMMARY " + json.dumps(summary, indent=1, default=str), flush=True)

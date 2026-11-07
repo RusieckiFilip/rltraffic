@@ -1,0 +1,40 @@
+"""G4: A27(g)'s six arm pairs at 40,000 steps, recomputed independently with numpy from the budget artifact's per-episode
+records (per draw the mean over the five seeds; mean +- 1.96 sd / sqrt(n), ddof 1), beside the artifact's own at_40k
+blocks: which pairs the registered 40,000-step cells resolve.
+
+Usage: python -P for_the_paper_40k.py REPO
+"""
+import itertools
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+
+b = json.loads((Path(sys.argv[1]) / "docs/data/p9_1_budget.json").read_text(encoding="utf-8"))
+CELLS = {"mappo1000": {"dt": "p4_4:madt", "bc": "p4_4:bc", "bc_top10": "p4_4:bc_top10", "iql": "p4_4:iql"},
+         "mix50": {"dt": "p4_7:dt@mix50", "bc": "p4_7:bc@mix50", "bc_top10": "p4_7:bc_top10@mix50", "iql": "p4_7:iql@mix50"}}
+
+
+def per_draw(rows, definition):
+    by_draw = {}
+    for r in rows:
+        by_draw.setdefault(int(r["draw_id"]), []).append(float(r[definition]))
+    assert all(len(v) == 5 for v in by_draw.values())
+    return {d: float(np.mean(v)) for d, v in by_draw.items()}
+
+
+for tier, cells in CELLS.items():
+    for definition in ("att_engine", "att_ours"):
+        pairs = {(p.get("left_arm"), p.get("right_arm")): p for p in b["tiers"][tier]["concordance"][definition]["pairs"]}
+        for left, right in itertools.combinations(("dt", "bc", "bc_top10", "iql"), 2):
+            lv, rv = per_draw(b["records"][cells[left]], definition), per_draw(b["records"][cells[right]], definition)
+            diff = np.array([lv[d] - rv[d] for d in sorted(lv)])
+            mean, half = diff.mean(), 1.96 * diff.std(ddof=1) / np.sqrt(len(diff))
+            low, high = mean - half, mean + half
+            artifact = pairs[(left, right)]["at_40k"]
+            same = all(abs(a - x) < 1e-9 for a, x in ((mean, artifact["mean_difference"]), (low, artifact["ci95_low"]),
+                                                    (high, artifact["ci95_high"])))
+            resolved = "resolved" if (low > 0 or high < 0) else "NOT resolved"
+            print(f"{tier:9s} {definition:10s} {left:8s} - {right:8s} 40k: {mean:+8.4f} [{low:+8.4f}, {high:+8.4f}] {resolved:12s}"
+                  f" | equals the artifact's at_40k within 1e-9: {same} | 100k outcome {pairs[(left, right)]['outcome']}")
