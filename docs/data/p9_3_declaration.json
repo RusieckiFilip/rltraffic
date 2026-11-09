@@ -1,0 +1,492 @@
+{
+  "format_version": "p9.3-declaration/1.0",
+  "git": {
+    "code_root": "/home/filip/rltraffic-p93",
+    "commit": "887a65deae8e2b5518f4a9958598787cfdf62f51",
+    "dirty": false
+  },
+  "label": "8 -- conditional generalizability extension registered after the grid results",
+  "ladder_att_second_route": "offline.att_ladder.tier_cells on a root holding only the hz4x4 directories, == this module's value on every tier",
+  "paper_sentence": "hangzhou_4x4 tests real demand and real road geometry on the grid's 4\u00d74 topology, with the same eight selectable green phases per intersection; it is not a new topology.",
+  "registered_in": "PREREGISTRATION A27 (i) and (b); BRIEF_48 section 3.3",
+  "t_regress_grid": {
+    "fixedtime": {
+      "ladder_att": 206.93176498413087,
+      "ladder_att_equal": true,
+      "mean_training_return": -492.6228125,
+      "mean_training_return_equal_at_one_decimal": true,
+      "recorded_ladder_att": 206.93176498413087,
+      "recorded_mean_training_return": -492.6
+    },
+    "mappo1000": {
+      "ladder_att": 160.33195198059082,
+      "ladder_att_equal": true,
+      "mean_training_return": -165.618125,
+      "mean_training_return_equal_at_one_decimal": true,
+      "recorded_ladder_att": 160.33195198059082,
+      "recorded_mean_training_return": -165.6
+    },
+    "maxpressure": {
+      "ladder_att": 167.49201210021974,
+      "ladder_att_equal": true,
+      "mean_training_return": -251.504375,
+      "mean_training_return_equal_at_one_decimal": true,
+      "recorded_ladder_att": 167.49201210021974,
+      "recorded_mean_training_return": -251.5
+    },
+    "random": {
+      "ladder_att": 257.7325928115845,
+      "ladder_att_equal": true,
+      "mean_training_return": -918.579375,
+      "mean_training_return_equal_at_one_decimal": true,
+      "recorded_ladder_att": 257.7325928115845,
+      "recorded_mean_training_return": -918.6
+    }
+  },
+  "tier_order_by_measured_att": [
+    "mappo1000",
+    "maxpressure",
+    "fixedtime",
+    "random_fresh"
+  ],
+  "tier_specs": {
+    "fixedtime": {
+      "dirs": [
+        "cf_hz4x4__fixedtime"
+      ],
+      "episode_count": 200,
+      "ladder_att": 534.1918182373047,
+      "mean_training_return": -3775.6328125,
+      "subsample": "none",
+      "tier": "fixedtime"
+    },
+    "mappo1000": {
+      "dirs": [
+        "cf_hz4x4__mappo1000__seed101",
+        "cf_hz4x4__mappo1000__seed202",
+        "cf_hz4x4__mappo1000__seed303",
+        "cf_hz4x4__mappo1000__seed404",
+        "cf_hz4x4__mappo1000__seed505"
+      ],
+      "episode_count": 200,
+      "ladder_att": 330.0150802612305,
+      "mean_training_return": -365.09875,
+      "subsample": "none",
+      "tier": "mappo1000"
+    },
+    "maxpressure": {
+      "dirs": [
+        "cf_hz4x4__maxpressure"
+      ],
+      "episode_count": 200,
+      "ladder_att": 370.29098068237306,
+      "mean_training_return": -1125.5734375,
+      "subsample": "none",
+      "tier": "maxpressure"
+    },
+    "random_fresh": {
+      "dirs": [
+        "cf_hz4x4__random_fresh"
+      ],
+      "episode_count": 200,
+      "ladder_att": 626.4670791625977,
+      "mean_training_return": -5058.7084375,
+      "subsample": "none",
+      "tier": "random_fresh"
+    }
+  },
+  "tiers": {
+    "fixedtime": {
+      "dirs": [
+        "cf_hz4x4__fixedtime"
+      ],
+      "episode_count": 200,
+      "exposure": {
+        "arms": {
+          "bc": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH",
+            "training_decisions": 1152000,
+            "visits": 44.44444444444444
+          },
+          "bc_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 20480,
+            "rows_per_step_from": "1,024 windows x CONTEXT_LENGTH",
+            "training_decisions": 1152000,
+            "visits": 711.1111111111111
+          },
+          "bc_top10": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH, on the global top decile",
+            "training_decisions": 115200,
+            "visits": 444.44444444444446
+          },
+          "bc_top10_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 2040,
+            "rows_per_step_from": "102 windows x CONTEXT_LENGTH (102.4 rounded down, declared), on the global top decile",
+            "training_decisions": 115200,
+            "visits": 708.3333333333334
+          },
+          "bc_top10_perix": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH, on the per-intersection top decile",
+            "training_decisions": 115200,
+            "visits": 444.44444444444446
+          },
+          "bc_top10_perix_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 2040,
+            "rows_per_step_from": "102 windows x CONTEXT_LENGTH, on the per-intersection top decile",
+            "training_decisions": 115200,
+            "visits": 708.3333333333334
+          },
+          "dt_nomix": {
+            "batch": "registered",
+            "rows_per_step": 20480,
+            "rows_per_step_from": "tier_sweep.JOINT_BATCH_SIZE x CONTEXT_LENGTH x intersections",
+            "training_decisions": 1152000,
+            "visits": 711.1111111111111
+          },
+          "iql": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.IQL_BATCH_TRANSITIONS",
+            "training_decisions": 1152000,
+            "visits": 44.44444444444444
+          },
+          "iql_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 20480,
+            "rows_per_step_from": "20,480 transitions",
+            "training_decisions": 1152000,
+            "visits": 711.1111111111111
+          }
+        },
+        "definition": "row visits = steps x decisions per step / decisions in the training set (A27 (b))",
+        "row_counts": {
+          "decisions": 1152000,
+          "episode_length": 360,
+          "episodes": 200,
+          "n_intersections": 16,
+          "streams": 3200,
+          "top_decile_decisions_global": 115200,
+          "top_decile_decisions_perix": 115200
+        },
+        "steps": 40000
+      },
+      "ladder_att": 534.1918182373047,
+      "mean_training_return": -3775.6328125,
+      "row_counts": {
+        "decisions": 1152000,
+        "episode_length": 360,
+        "episodes": 200,
+        "n_intersections": 16,
+        "streams": 3200,
+        "top_decile_decisions_global": 115200,
+        "top_decile_decisions_perix": 115200
+      },
+      "subsample": "none",
+      "tier": "fixedtime"
+    },
+    "mappo1000": {
+      "dirs": [
+        "cf_hz4x4__mappo1000__seed101",
+        "cf_hz4x4__mappo1000__seed202",
+        "cf_hz4x4__mappo1000__seed303",
+        "cf_hz4x4__mappo1000__seed404",
+        "cf_hz4x4__mappo1000__seed505"
+      ],
+      "episode_count": 200,
+      "exposure": {
+        "arms": {
+          "bc": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH",
+            "training_decisions": 1152000,
+            "visits": 44.44444444444444
+          },
+          "bc_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 20480,
+            "rows_per_step_from": "1,024 windows x CONTEXT_LENGTH",
+            "training_decisions": 1152000,
+            "visits": 711.1111111111111
+          },
+          "bc_top10": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH, on the global top decile",
+            "training_decisions": 115200,
+            "visits": 444.44444444444446
+          },
+          "bc_top10_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 2040,
+            "rows_per_step_from": "102 windows x CONTEXT_LENGTH (102.4 rounded down, declared), on the global top decile",
+            "training_decisions": 115200,
+            "visits": 708.3333333333334
+          },
+          "bc_top10_perix": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH, on the per-intersection top decile",
+            "training_decisions": 115200,
+            "visits": 444.44444444444446
+          },
+          "bc_top10_perix_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 2040,
+            "rows_per_step_from": "102 windows x CONTEXT_LENGTH, on the per-intersection top decile",
+            "training_decisions": 115200,
+            "visits": 708.3333333333334
+          },
+          "dt_nomix": {
+            "batch": "registered",
+            "rows_per_step": 20480,
+            "rows_per_step_from": "tier_sweep.JOINT_BATCH_SIZE x CONTEXT_LENGTH x intersections",
+            "training_decisions": 1152000,
+            "visits": 711.1111111111111
+          },
+          "iql": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.IQL_BATCH_TRANSITIONS",
+            "training_decisions": 1152000,
+            "visits": 44.44444444444444
+          },
+          "iql_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 20480,
+            "rows_per_step_from": "20,480 transitions",
+            "training_decisions": 1152000,
+            "visits": 711.1111111111111
+          }
+        },
+        "definition": "row visits = steps x decisions per step / decisions in the training set (A27 (b))",
+        "row_counts": {
+          "decisions": 1152000,
+          "episode_length": 360,
+          "episodes": 200,
+          "n_intersections": 16,
+          "streams": 3200,
+          "top_decile_decisions_global": 115200,
+          "top_decile_decisions_perix": 115200
+        },
+        "steps": 40000
+      },
+      "ladder_att": 330.0150802612305,
+      "mean_training_return": -365.09875,
+      "row_counts": {
+        "decisions": 1152000,
+        "episode_length": 360,
+        "episodes": 200,
+        "n_intersections": 16,
+        "streams": 3200,
+        "top_decile_decisions_global": 115200,
+        "top_decile_decisions_perix": 115200
+      },
+      "subsample": "none",
+      "tier": "mappo1000"
+    },
+    "maxpressure": {
+      "dirs": [
+        "cf_hz4x4__maxpressure"
+      ],
+      "episode_count": 200,
+      "exposure": {
+        "arms": {
+          "bc": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH",
+            "training_decisions": 1152000,
+            "visits": 44.44444444444444
+          },
+          "bc_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 20480,
+            "rows_per_step_from": "1,024 windows x CONTEXT_LENGTH",
+            "training_decisions": 1152000,
+            "visits": 711.1111111111111
+          },
+          "bc_top10": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH, on the global top decile",
+            "training_decisions": 115200,
+            "visits": 444.44444444444446
+          },
+          "bc_top10_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 2040,
+            "rows_per_step_from": "102 windows x CONTEXT_LENGTH (102.4 rounded down, declared), on the global top decile",
+            "training_decisions": 115200,
+            "visits": 708.3333333333334
+          },
+          "bc_top10_perix": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH, on the per-intersection top decile",
+            "training_decisions": 115200,
+            "visits": 444.44444444444446
+          },
+          "bc_top10_perix_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 2040,
+            "rows_per_step_from": "102 windows x CONTEXT_LENGTH, on the per-intersection top decile",
+            "training_decisions": 115200,
+            "visits": 708.3333333333334
+          },
+          "dt_nomix": {
+            "batch": "registered",
+            "rows_per_step": 20480,
+            "rows_per_step_from": "tier_sweep.JOINT_BATCH_SIZE x CONTEXT_LENGTH x intersections",
+            "training_decisions": 1152000,
+            "visits": 711.1111111111111
+          },
+          "iql": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.IQL_BATCH_TRANSITIONS",
+            "training_decisions": 1152000,
+            "visits": 44.44444444444444
+          },
+          "iql_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 20480,
+            "rows_per_step_from": "20,480 transitions",
+            "training_decisions": 1152000,
+            "visits": 711.1111111111111
+          }
+        },
+        "definition": "row visits = steps x decisions per step / decisions in the training set (A27 (b))",
+        "row_counts": {
+          "decisions": 1152000,
+          "episode_length": 360,
+          "episodes": 200,
+          "n_intersections": 16,
+          "streams": 3200,
+          "top_decile_decisions_global": 115200,
+          "top_decile_decisions_perix": 115200
+        },
+        "steps": 40000
+      },
+      "ladder_att": 370.29098068237306,
+      "mean_training_return": -1125.5734375,
+      "row_counts": {
+        "decisions": 1152000,
+        "episode_length": 360,
+        "episodes": 200,
+        "n_intersections": 16,
+        "streams": 3200,
+        "top_decile_decisions_global": 115200,
+        "top_decile_decisions_perix": 115200
+      },
+      "subsample": "none",
+      "tier": "maxpressure"
+    },
+    "random_fresh": {
+      "dirs": [
+        "cf_hz4x4__random_fresh"
+      ],
+      "episode_count": 200,
+      "exposure": {
+        "arms": {
+          "bc": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH",
+            "training_decisions": 1152000,
+            "visits": 44.44444444444444
+          },
+          "bc_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 20480,
+            "rows_per_step_from": "1,024 windows x CONTEXT_LENGTH",
+            "training_decisions": 1152000,
+            "visits": 711.1111111111111
+          },
+          "bc_top10": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH, on the global top decile",
+            "training_decisions": 115200,
+            "visits": 444.44444444444446
+          },
+          "bc_top10_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 2040,
+            "rows_per_step_from": "102 windows x CONTEXT_LENGTH (102.4 rounded down, declared), on the global top decile",
+            "training_decisions": 115200,
+            "visits": 708.3333333333334
+          },
+          "bc_top10_perix": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH, on the per-intersection top decile",
+            "training_decisions": 115200,
+            "visits": 444.44444444444446
+          },
+          "bc_top10_perix_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 2040,
+            "rows_per_step_from": "102 windows x CONTEXT_LENGTH, on the per-intersection top decile",
+            "training_decisions": 115200,
+            "visits": 708.3333333333334
+          },
+          "dt_nomix": {
+            "batch": "registered",
+            "rows_per_step": 20480,
+            "rows_per_step_from": "tier_sweep.JOINT_BATCH_SIZE x CONTEXT_LENGTH x intersections",
+            "training_decisions": 1152000,
+            "visits": 711.1111111111111
+          },
+          "iql": {
+            "batch": "registered",
+            "rows_per_step": 1280,
+            "rows_per_step_from": "offline_baselines.IQL_BATCH_TRANSITIONS",
+            "training_decisions": 1152000,
+            "visits": 44.44444444444444
+          },
+          "iql_m": {
+            "batch": "matched (A27 (b))",
+            "rows_per_step": 20480,
+            "rows_per_step_from": "20,480 transitions",
+            "training_decisions": 1152000,
+            "visits": 711.1111111111111
+          }
+        },
+        "definition": "row visits = steps x decisions per step / decisions in the training set (A27 (b))",
+        "row_counts": {
+          "decisions": 1152000,
+          "episode_length": 360,
+          "episodes": 200,
+          "n_intersections": 16,
+          "streams": 3200,
+          "top_decile_decisions_global": 115200,
+          "top_decile_decisions_perix": 115200
+        },
+        "steps": 40000
+      },
+      "ladder_att": 626.4670791625977,
+      "mean_training_return": -5058.7084375,
+      "row_counts": {
+        "decisions": 1152000,
+        "episode_length": 360,
+        "episodes": 200,
+        "n_intersections": 16,
+        "streams": 3200,
+        "top_decile_decisions_global": 115200,
+        "top_decile_decisions_perix": 115200
+      },
+      "subsample": "none",
+      "tier": "random_fresh"
+    }
+  }
+}

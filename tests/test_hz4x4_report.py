@@ -1,0 +1,699 @@
+"""Tests for P9.3 Phase B's report (``BRIEF_48`` E.3.6, Amendments G.2 and H.2-4; ``docs/plans/p9.3.md`` section 10.3)
+-- written before the code they test.
+
+* the leaders rule is ``tier_statements.leaders_block``'s body with its grid constants made parameters: held to the
+  original on a synthetic grid book that exercises a resolving lead, an exact tie and a definition-dependent reading, and
+  on the grid's committed books where the main tree's ``output/`` exists;
+* hz4x4's leaders: the five arms on each tier under both definitions, no primary, ``registered: false``, the references'
+  levels beside the leaders and never among them, ``definition_dependent`` flagged (A-B2, ruled in G.2);
+* the cells are read from their records in (seed, draw) order, refused unless complete, reproduced and free of refusals;
+* a cell's summary is ``tier_statements.cells_block``'s per-cell computation, field for field, with hz4x4's sources;
+* the training block carries every one of the 100 records under the uncontrolled-clock label, each checkpoint verified;
+* the old cells are the grid's counterparts copied per episode with path and digest; P9.1's are named as pending (Q4);
+* the report cites the gate and the declaration by digest, carries the exposure table and says what it is not.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+import offline.hz4x4_ladder as hz
+import offline.hz4x4_phase_b as pb
+import offline.hz4x4_report as rp
+import offline.tier_statements as st
+import offline.tier_sweep as ts
+from offline.dt_gate import mean_ci95
+
+REPO = Path(__file__).resolve().parents[1]
+SEEDS = (101, 202, 303, 404, 505)
+DRAWS = (1000, 1001, 1002)
+
+needs_grid_output = pytest.mark.skipif(
+    not (hz.MAIN_OUTPUT_ROOT / "SHA256SUMS_p5_2.txt").is_file(),
+    reason="the grid's committed evaluation output (the main tree's output/SHA256SUMS_p5_* and their files) is not here",
+)
+
+
+def _sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _jiggle(level: float, seed: int, draw: int) -> float:
+    """A deterministic per-episode variation, so every CI is non-degenerate and identical cells stay identical; the
+    small seed and draw terms make every value of a cell distinct, so a quantile's interpolation is never hidden by a
+    tie (mutant S2: ``method="lower"`` for ``"linear"`` survived the tied values)."""
+    return float(level + (((seed // 101) * 7 + (draw - 1000) * 3) % 5 - 2) / 2.0 + seed * 1e-3 + (draw - 1000) * 1e-5)
+
+
+def _row(arm: str, seed: int, draw: int, ours: float, engine: float, *, never: int = 0) -> dict[str, Any]:
+    created = 2700
+    return {"arm": arm, "seed": seed, "draw_id": draw, "att_ours": float(ours), "att_engine": float(engine),
+            "created": created, "entered": created - never, "never_entered": never,
+            "entered_fraction": (created - never) / created, "horizon_vehicle_count": float(10 + seed % 7),
+            "episode_reward": float(-ours)}
+
+
+def _cell(cell_id: str, method: str, tier: str, source: str, arm: str, rows: list[dict[str, Any]],
+          eval_file: str | None = None) -> Any:
+    spec = st.CellSpec(cell_id=cell_id, method=method, tier=tier, source=source, arm=arm,
+                       eval_file=eval_file or f"{source}/eval_{tier}_{method}.json", manifest="SHA256SUMS_test.txt")
+    return st.Cell(spec=spec, rows=tuple(sorted(rows, key=lambda r: (r["seed"], r["draw_id"]))))
+
+
+def _levelled(cell_id: str, method: str, tier: str, source: str, arm: str, ours: float, engine: float,
+              eval_file: str | None = None) -> Any:
+    rows = [_row(arm, s, d, _jiggle(ours, s, d), _jiggle(engine, s, d), never=(s + d) % 3) for s in SEEDS for d in DRAWS]
+    return _cell(cell_id, method, tier, source, arm, rows, eval_file)
+
+
+# ======================================================================
+# The leaders rule: a mirror of tier_statements.leaders_block
+# ======================================================================
+
+
+def _grid_books() -> dict[str, dict[tuple[str, str], Any]]:
+    """A synthetic grid book: a resolving unique lead on most tiers, an exact tie for the lead at fixedtime (identical
+    cells), a lead that changes with the definition at maxpressure, and the random tier's two IQL versions."""
+    book: dict[tuple[str, str], Any] = {}
+    for t_index, tier in enumerate(st.TIERS):
+        for m_index, method in enumerate(ts.METHODS):
+            ours = 200.0 + 10.0 * m_index + t_index
+            engine = ours - 3.0 if tier != "maxpressure" else 200.0 + 10.0 * (len(ts.METHODS) - 1 - m_index)
+            book[(method, tier)] = _levelled(f"syn:{method}@{tier}", method, tier, "syn", f"{method}@{tier}", ours,
+                                             engine)
+    leader = book[("dt_spatial", "mappo1000")]
+    offsets = {1000: -1.0, 1001: 0.8, 1002: -0.1}  # a mean lead of 0.1 whose per-draw differences change sign
+    close = [dict(r, arm="dt_nomix@mappo1000", att_ours=r["att_ours"] + offsets[r["draw_id"]],
+                  att_engine=r["att_engine"] + offsets[r["draw_id"]]) for r in leader.rows]
+    book[("dt_nomix", "mappo1000")] = _cell("syn:dt_nomix@mappo1000", "dt_nomix", "mappo1000", "syn",
+                                            "dt_nomix@mappo1000", close)
+    tied = book[("dt_spatial", "fixedtime")]
+    book[("dt_nomix", "fixedtime")] = _cell("syn:dt_nomix@fixedtime", "dt_nomix", "fixedtime", "syn",
+                                            "dt_nomix@fixedtime", [dict(r, arm="dt_nomix@fixedtime") for r in tied.rows])
+    original = dict(book)
+    original[("iql", "random")] = _levelled("syn:iql@random#original", "iql", "random", "syn", "iql@random", 190.0,
+                                            185.0)
+    return {"corrected": book, "as_committed": original}
+
+
+def _grid_parameters() -> dict[str, Any]:
+    return dict(tiers=st.TIERS, methods=ts.METHODS, primary_definition=st.PRIMARY_DEFINITION,
+                versions_of=st._versions_of)
+
+
+def test_the_leaders_mirror_is_tier_statements_leaders_block_on_a_synthetic_grid_book() -> None:
+    books = _grid_books()
+    theirs = st.leaders_block(books)
+    mine = rp.hz4x4_leaders_block(books, **_grid_parameters())
+    assert json.dumps(mine, sort_keys=True) == json.dumps(theirs, sort_keys=True)
+    assert len(theirs) == 10
+    readings = [block["reading"] for block in theirs]
+    assert any("tie exactly for the lead" in reading for reading in readings)
+    assert any("the lead resolves" in reading for reading in readings)
+    # mutant L4 (the CI's low end read in place of its high end) survived a book whose every lead resolved
+    assert any("the lead does not resolve" in reading for reading in readings)
+    assert any(block["definition_dependent"] for block in theirs)
+    assert not all(block["definition_dependent"] for block in theirs)
+
+
+@needs_grid_output
+def test_the_leaders_mirror_is_tier_statements_leaders_block_on_the_grids_committed_books() -> None:
+    inputs = st.load_inputs(st.Roots(repo_root=REPO, output_root=hz.MAIN_OUTPUT_ROOT))
+    books = st.make_books(inputs.cells)
+    assert json.dumps(rp.hz4x4_leaders_block(books, **_grid_parameters()), sort_keys=True) == json.dumps(
+        st.leaders_block(books), sort_keys=True)
+
+
+# ======================================================================
+# hz4x4's leaders
+# ======================================================================
+
+REFERENCE_LEVELS: dict[str, tuple[float, float]] = {
+    "behaviour@maxpressure": (370.0, 365.0), "behaviour@fixedtime": (534.0, 555.0), "behaviour@mappo1000": (330.0, 325.0),
+    "behaviour@random_fresh": (615.0, 670.0), "random@mappo1000": (608.0, 653.0)}
+
+
+def _hz4x4_cells(*, dependent_tier: str = "fixedtime") -> dict[str, Any]:
+    cells: dict[str, Any] = {}
+    for t_index, tier in enumerate(hz.TIER_ORDER):
+        for m_index, method in enumerate(pb.ARMS):
+            arm = f"{method}@{tier}"
+            ours = 300.0 + 5.0 * m_index + t_index
+            engine = ours - 4.0 if tier != dependent_tier else 300.0 + 5.0 * (len(pb.ARMS) - 1 - m_index)
+            cells[f"p9_3:{arm}"] = _levelled(f"p9_3:{arm}", method, tier, "p9_3", arm, ours, engine)
+    for method, tier in pb.REFERENCE_CELLS:
+        arm = f"{method}@{tier}"
+        ours, engine = REFERENCE_LEVELS[arm]
+        cells[f"p9_3:{arm}"] = _levelled(f"p9_3:{arm}", method, tier, "p9_3", arm, ours, engine)
+    return cells
+
+
+def test_hz4x4s_leaders_have_no_primary_keep_the_references_beside_and_flag_definition_dependence() -> None:
+    cells = _hz4x4_cells()
+    blocks = rp.leaders(cells)
+    assert [(b["tier"], b["definition"]) for b in blocks] == [(t, d) for t in hz.TIER_ORDER for d in st.DEFINITIONS]
+    assert all((b["primary"], b["registered"], b["version"]) == (False, False, "both") for b in blocks)
+    for block in blocks:
+        assert list(block["levels"]) == list(pb.ARMS)
+        assert list(block["references"]) == list(rp.REFERENCE_ARMS)
+        assert not set(block["references"]) & set(block["leaders"] + block["runners_up"])
+    by = {(b["tier"], b["definition"]): b for b in blocks}
+    assert (by[("fixedtime", "att_ours")]["leaders"], by[("fixedtime", "att_engine")]["leaders"]) == (["dt_nomix"],
+                                                                                                    ["iql_m"])
+    assert by[("fixedtime", "att_ours")]["definition_dependent"] is True
+    assert by[("maxpressure", "att_ours")]["definition_dependent"] is False
+    rows = cells["p9_3:behaviour@maxpressure"].rows
+    assert by[("maxpressure", "att_engine")]["references"]["behaviour@maxpressure"] == float(
+        mean_ci95([r["att_engine"] for r in sorted(rows, key=lambda r: (r["seed"], r["draw_id"]))]).mean)
+    mirrored = rp.hz4x4_leaders_block({"corrected": rp.book_of(cells)}, tiers=hz.TIER_ORDER, methods=pb.ARMS,
+                                      primary_definition=None, versions_of=lambda tier: ("both",))
+    assert [{key: value for key, value in block.items() if key in mirrored[0]} for block in blocks] == mirrored
+
+
+# ======================================================================
+# The cells, read from the records
+# ======================================================================
+
+
+def _eval_record(cell: Any, seed: int, draw: int) -> dict[str, Any]:
+    ours = 300.0 + seed / 1000.0 + draw / 10000.0
+    return {"format_version": pb.ARTIFACT_FORMAT_EVAL, "scenario": "hz4x4", "arm": cell.arm, "method": cell.method,
+            "tier": cell.tier, "seed": seed, "draw_id": draw, "engine_seed": 1000, "att_ours": ours,
+            "att_engine": ours + 1.5, "created": 2700, "entered": 2690, "never_entered": 10,
+            "entered_fraction": 2690 / 2700,
+            "route_i": {"att_horizon": ours, "horizon_vehicle_count": 12.0 + seed % 5, "episode_reward": -ours},
+            "route_ii": {"att_ours": ours}, "seconds_route_i": 1.0, "reproduces": True, "policy_source": {"policy": "x"}}
+
+
+def _write_records(out: Path, seeds: tuple[int, ...], draws: tuple[int, ...]) -> None:
+    for cell, seed, draw in pb.planned_episodes(pb.evaluation_cells(), seeds=seeds, draws=draws):
+        pb.write_eval_record(pb.eval_record_path(out, cell, seed, draw), _eval_record(cell, seed, draw))
+
+
+def test_the_cells_are_read_from_their_records_in_seed_and_draw_order(tmp_path: Path) -> None:
+    _write_records(tmp_path, (202, 101), (1001, 1000))
+    cells = rp.load_cells(tmp_path, seeds=(202, 101), draws=(1001, 1000))
+    assert list(cells) == [f"p9_3:{c.arm}" for c in pb.evaluation_cells()]
+    cell = cells["p9_3:iql_m@random_fresh"]
+    assert (cell.spec.method, cell.spec.tier, cell.spec.source, cell.spec.arm) == ("iql_m", "random_fresh", "p9_3",
+                                                                                   "iql_m@random_fresh")
+    assert [(r["seed"], r["draw_id"]) for r in cell.rows] == [(101, 1000), (101, 1001), (202, 1000), (202, 1001)]
+    record = _eval_record(pb.EvalCell("iql_m", "random_fresh"), 202, 1001)
+    assert cell.rows[3] == {"arm": "iql_m@random_fresh", "seed": 202, "draw_id": 1001, "att_ours": record["att_ours"],
+                            "att_engine": record["att_engine"], "created": 2700, "entered": 2690, "never_entered": 10,
+                            "entered_fraction": 2690 / 2700, "horizon_vehicle_count": 14.0,
+                            "episode_reward": -record["att_ours"]}
+
+
+def test_the_cells_are_refused_unless_complete_reproduced_and_free_of_refusals(tmp_path: Path) -> None:
+    _write_records(tmp_path, (101,), (1000, 1001))
+    cell = pb.EvalCell("dt_nomix", "fixedtime")
+    path = pb.eval_record_path(tmp_path, cell, 101, 1001)
+    saved = path.read_bytes()
+    path.unlink()
+    with pytest.raises(FileNotFoundError, match="missing"):
+        rp.load_cells(tmp_path, seeds=(101,), draws=(1000, 1001))
+    record = json.loads(saved)
+    record["att_ours"] = record["att_ours"] + 1.0
+    path.write_text(json.dumps(record), encoding="utf-8")
+    with pytest.raises(ValueError, match="route \\(i\\)"):
+        rp.load_cells(tmp_path, seeds=(101,), draws=(1000, 1001))
+    path.write_bytes(saved)
+    assert len(rp.load_cells(tmp_path, seeds=(101,), draws=(1000, 1001))) == 25
+    pb.write_eval_record(pb.refusal_record_path(tmp_path, cell, 101, 1001), {"refusal": "does not reproduce"})
+    with pytest.raises(ValueError, match="refused"):
+        rp.load_cells(tmp_path, seeds=(101,), draws=(1000, 1001))
+
+
+# ======================================================================
+# Cell summaries, training, old cells
+# ======================================================================
+
+
+def test_a_cells_summary_is_the_grids_per_cell_computation_with_hz4x4s_sources() -> None:
+    cells = _hz4x4_cells()
+    mine, theirs = rp.cell_summaries(cells), st.cells_block(cells)
+    assert list(mine) == list(cells)
+    for cell_id, cell in cells.items():
+        assert {k: v for k, v in mine[cell_id].items() if k != "sources"} == {
+            k: v for k, v in theirs[cell_id].items() if k != "sources"}
+        files = f"output/p9_3/eval/{cell.spec.arm}__seed*__draw*.json"
+        assert mine[cell_id]["sources"] == {"att_ours": files, "att_engine": files, "companions": files,
+                                            "horizon_vehicle_count": files}
+
+
+#: BRIEF_48 Amendment I, I.3-2: the git block of every campaign training record -- the run tree at 4dcbedc, clean.
+CAMPAIGN_GIT: dict[str, Any] = {"commit": "4dcbedc25021634c199897beffeab4d806b9afc2", "dirty": False,
+                                "code_root": "/home/filip/rltraffic-p93-run-c"}
+
+
+def _training_tree(out: Path) -> None:
+    for tier, arm, seed in pb.training_cells():
+        payload = f"{tier}/{arm}/{seed}".encode()
+        path = pb.checkpoint_path(out, tier, arm, seed)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
+        record = pb.train_record_path(out, tier, arm, seed)
+        record.parent.mkdir(parents=True, exist_ok=True)
+        record.write_text(json.dumps({
+            "format_version": pb.ARTIFACT_FORMAT_TRAIN, "tier": tier, "arm": arm, "seed": seed,
+            "seconds": 100.0 + seed / 1000.0, "gradient_steps": 40_000, "declared_gradient_steps": 40_000,
+            "clock": pb.CLOCK_LABEL, "file_sha256": _sha(payload), "checkpoint_path": str(path),
+            "load_average_1min": {"start": 1.0, "end": 1.5}, "git": dict(CAMPAIGN_GIT)}),
+            encoding="utf-8")
+
+
+def test_the_training_block_carries_every_cell_under_the_clock_label_and_verifies_each_checkpoint(tmp_path: Path) -> None:
+    _training_tree(tmp_path)
+    rows = rp.training_block(tmp_path)
+    assert [(r["tier"], r["arm"], r["seed"]) for r in rows] == pb.training_cells()
+    assert all(r["clock"] == pb.CLOCK_LABEL and r["gradient_steps"] == 40_000 for r in rows)
+    assert rows[7]["seconds"] == 100.0 + rows[7]["seed"] / 1000.0
+    tier, arm, seed = pb.training_cells()[42]
+    pb.checkpoint_path(tmp_path, tier, arm, seed).write_bytes(b"other weights")
+    with pytest.raises(ValueError, match="is not the checkpoint"):
+        rp.training_block(tmp_path)
+    pb.checkpoint_path(tmp_path, tier, arm, seed).write_bytes(f"{tier}/{arm}/{seed}".encode())
+    record_path = pb.train_record_path(tmp_path, tier, arm, seed)
+    record = json.loads(record_path.read_bytes())
+    record_path.write_text(json.dumps(dict(record, gradient_steps=2)), encoding="utf-8")
+    with pytest.raises(ValueError, match="40000"):
+        rp.training_block(tmp_path)
+    record_path.unlink()
+    with pytest.raises(FileNotFoundError, match="missing"):
+        rp.training_block(tmp_path)
+
+
+def _grid_counterparts() -> tuple[dict[str, Any], dict[str, Any]]:
+    grid: dict[str, Any] = {}
+    files = []
+    for index, ((method, tier), cell_id) in enumerate(rp.GRID_COUNTERPARTS.items()):
+        source, arm = cell_id.split(":")
+        eval_file = f"{source}/eval_{index}.json"
+        grid[cell_id] = _levelled(cell_id, method, tier, source, arm, 160.0 + index, 155.0 + index, eval_file)
+        files.append({"file": f"output/{eval_file}", "sha256": f"{index:064x}", "anchor": "its line in a manifest"})
+    grid["p5_2:iql@random"] = _levelled("p5_2:iql@random", "iql", "random", "p5_2", "iql@random", 1.0, 1.0)
+    provenance = {"inputs": files, "p8_4b_campaign": {"declared_cells_sha256": "a" * 64},
+                  "p8_4b_rows": {"sha256": "b" * 64}}
+    return grid, provenance
+
+
+#: K.1's two artifacts, by the paths J.9's map names.
+P9_1_PATHS = {"exposure_parity": "docs/data/p9_1_exposure_parity.json", "random_fresh": "docs/data/p9_1_random_fresh.json"}
+
+
+def _p9_1_records(method: str, tier: str, *, offset: float = 0.0) -> list[dict[str, Any]]:
+    """One synthetic P9.1 cell: its 500 records in P9.1's record format, (seed, draw) order."""
+    arm = f"{method}@{tier}"
+    return [{"arm": arm, "att_engine": 150.0 + offset + seed / 1000.0 + (draw - 1000) / 100.0,
+             "att_ours": 155.0 + offset + seed / 1000.0 + (draw - 1000) / 100.0, "created": 1323, "draw_id": draw,
+             "entered": 1323, "entered_fraction": 1.0, "episode_reward": -2000.0 - draw, "horizon_vehicle_count": 15.0,
+             "never_entered": 0, "seed": seed, "source": f"synthetic {arm}", "tier": tier}
+            for seed in SEEDS for draw in range(1000, 1100)]
+
+
+def _p9_1_artifacts() -> dict[str, tuple[dict[str, Any], str]]:
+    """``read_p9_1_artifacts``' shape: per artifact path, its records by key and its sha256.  The exposure-parity artifact
+    also holds a DECOY ``random_fresh`` cell with other values, which J.9's map must never read."""
+    exposure = {f"p9_1:grid4x4:{m}@{t}": _p9_1_records(m, t) for m, t in rp.P9_1_COUNTERPARTS if t != "random_fresh"}
+    fresh = {f"p9_1:grid4x4:{m}@{t}": _p9_1_records(m, t, offset=7.0) for m, t in rp.P9_1_COUNTERPARTS
+             if t == "random_fresh"}
+    exposure["p9_1:grid4x4:bc_m@random_fresh"] = _p9_1_records("bc_m", "random_fresh", offset=999.0)
+    return {P9_1_PATHS["exposure_parity"]: (exposure, "e" * 64), P9_1_PATHS["random_fresh"]: (fresh, "f" * 64)}
+
+
+def test_old_cells_copy_all_25_counterparts_with_their_sources_and_digests_and_leave_nothing_pending() -> None:
+    # BRIEF_48 Amendment K, K.2: this test was J.9-4's "...and_name_p9_1s_as_pending"; renamed for the new expectation.
+    grid, provenance = _grid_counterparts()
+    p9_1 = _p9_1_artifacts()
+    old = rp.old_cells(grid, provenance=provenance, p9_1=p9_1)
+    assert old["format_version"] == rp.ARTIFACT_FORMAT_OLD_CELLS
+    assert list(old["cells"]) == [f"{m}@{t}" for m, t in rp.GRID_COUNTERPARTS] + [f"{m}@{t}" for m, t in
+                                                                                   rp.P9_1_COUNTERPARTS]
+    assert len(old["cells"]) == 25 and old["pending"] == {}
+    for index, ((method, tier), cell_id) in enumerate(rp.GRID_COUNTERPARTS.items()):
+        entry = old["cells"][f"{method}@{tier}"]
+        assert entry["counterpart"] == cell_id
+        assert entry["rows"] == [dict(r) for r in grid[cell_id].rows] and len(entry["rows"]) == 15
+        assert (entry["eval_file"], entry["eval_file_sha256"]) == (f"output/{grid[cell_id].spec.eval_file}",
+                                                                   f"{index:064x}")
+    for method, tier in rp.P9_1_COUNTERPARTS:
+        entry = old["cells"][f"{method}@{tier}"]
+        path = P9_1_PATHS["random_fresh" if tier == "random_fresh" else "exposure_parity"]
+        key = f"p9_1:grid4x4:{method}@{tier}"
+        records, sha = p9_1[path]
+        assert (entry["counterpart"], entry["artifact"], entry["artifact_sha256"], entry["record_key"]) == (
+            key, path, sha, key)
+        assert entry["rows"] == records[key] and len(entry["rows"]) == 500
+        assert entry["label"] is None
+    assert old["att_engine_rows"] == {"p8_4b_campaign": provenance["p8_4b_campaign"],
+                                      "p8_4b_rows": provenance["p8_4b_rows"]}
+    provenance["inputs"] = provenance["inputs"][1:]
+    with pytest.raises(ValueError, match="no digest"):
+        rp.old_cells(grid, provenance=provenance, p9_1=p9_1)
+
+
+def test_the_18_are_read_from_p9_1s_pinned_artifacts_at_their_committed_bytes() -> None:
+    p9_1 = rp.read_p9_1_artifacts(REPO)
+    pinned = {P9_1_PATHS["exposure_parity"]: "d49088c369cefabf95d58286682ddfb876d61c9218f51ea902a85de28956adf8",
+              P9_1_PATHS["random_fresh"]: "b49ebefd8886cdb2ca26b54ebb5097e4bf9a73711fece1a5ebcf4fbb07f8b103"}
+    assert {path: sha for path, (_, sha) in p9_1.items()} == pinned
+    grid, provenance = _grid_counterparts()
+    old = rp.old_cells(grid, provenance=provenance, p9_1=p9_1)
+    assert old["pending"] == {}
+    raw = {path: json.loads((REPO / path).read_bytes())["records"] for path in pinned}  # a second, independent read
+    for method, tier in rp.P9_1_COUNTERPARTS:
+        path = P9_1_PATHS["random_fresh" if tier == "random_fresh" else "exposure_parity"]
+        key = f"p9_1:grid4x4:{method}@{tier}"
+        entry = old["cells"][f"{method}@{tier}"]
+        assert (entry["artifact"], entry["artifact_sha256"], entry["record_key"]) == (path, pinned[path], key)
+        assert entry["rows"] == sorted(raw[path][key], key=lambda r: (r["seed"], r["draw_id"]))
+        assert len(entry["rows"]) == 500 and set(entry["rows"][0]) == set(raw[path][key][0])
+
+
+def test_a_p9_1_artifact_whose_bytes_are_not_the_pinned_ones_is_refused(tmp_path: Path) -> None:
+    (tmp_path / "docs" / "data").mkdir(parents=True)
+    for path in P9_1_PATHS.values():
+        shutil.copyfile(REPO / path, tmp_path / path)
+    assert set(rp.read_p9_1_artifacts(tmp_path)) == set(P9_1_PATHS.values())
+    tampered = tmp_path / P9_1_PATHS["random_fresh"]
+    tampered.write_bytes(tampered.read_bytes() + b"\n")  # the same JSON, other bytes
+    with pytest.raises(ValueError, match="b49ebefd8886cdb2ca26b54ebb5097e4bf9a73711fece1a5ebcf4fbb07f8b103"):
+        rp.read_p9_1_artifacts(tmp_path)
+
+
+def test_old_cells_refuse_a_p9_1_counterpart_that_is_missing_short_or_misfiled() -> None:
+    grid, provenance = _grid_counterparts()
+    exposure, fresh = P9_1_PATHS["exposure_parity"], P9_1_PATHS["random_fresh"]
+    cases = [
+        ("missing", lambda a: a[fresh][0].pop("p9_1:grid4x4:dt_nomix@random_fresh")),
+        ("500 records", lambda a: a[exposure][0]["p9_1:grid4x4:iql_m@fixedtime"].pop()),
+        ("500 records", lambda a: a[exposure][0]["p9_1:grid4x4:bc_m@maxpressure"][0].update(seed=606)),
+        ("arm", lambda a: a[fresh][0]["p9_1:grid4x4:behaviour@random_fresh"][3].update(arm="bc_m@random_fresh")),
+        ("tier", lambda a: a[exposure][0]["p9_1:grid4x4:bc_top10_m@mappo1000"][7].update(tier="maxpressure")),
+    ]
+    for word, edit in cases:
+        p9_1 = _p9_1_artifacts()
+        edit(p9_1)
+        with pytest.raises(ValueError, match=word):
+            rp.old_cells(grid, provenance=provenance, p9_1=p9_1)
+
+
+@needs_grid_output
+def test_old_cells_on_the_grids_committed_inputs_carry_the_files_own_digest() -> None:
+    inputs = st.load_inputs(st.Roots(repo_root=REPO, output_root=hz.MAIN_OUTPUT_ROOT))
+    old = rp.old_cells(inputs.cells, provenance=inputs.provenance)
+    assert len(old["cells"]) == 7 and {len(entry["rows"]) for entry in old["cells"].values()} == {500}
+    entry = old["cells"]["dt_nomix@maxpressure"]
+    assert entry["eval_file"] == "output/p5_2/eval_maxpressure_dt_nomix.json"
+    assert entry["eval_file_sha256"] == _sha((hz.MAIN_OUTPUT_ROOT / "p5_2" / "eval_maxpressure_dt_nomix.json").read_bytes())
+    assert old["cells"]["random@mappo1000"]["counterpart"] == st.ANCHOR_CELL
+
+
+# ======================================================================
+# The report
+# ======================================================================
+
+
+def test_the_report_cites_the_gate_and_the_declaration_by_digest_and_says_what_it_is_not() -> None:
+    cells = _hz4x4_cells()
+    training = [{"tier": t, "arm": a, "seed": s, "seconds": 1.0, "gradient_steps": 40_000, "clock": pb.CLOCK_LABEL}
+                for t, a, s in pb.training_cells()]
+    grid, provenance = _grid_counterparts()
+    old = rp.old_cells(grid, provenance=provenance)
+    artifact = rp.report_artifact(cells=cells, training=training, old=old, repo_root=REPO)
+    gate_bytes = (REPO / rp.GATE_ARTIFACT).read_bytes()
+    declaration_bytes = (REPO / rp.DECLARATION_ARTIFACT).read_bytes()
+    declared = json.loads(declaration_bytes)
+    assert artifact["format_version"] == rp.ARTIFACT_FORMAT_REPORT
+    assert (artifact["label"], artifact["paper_sentence"]) == (hz.A27_LABEL, hz.PAPER_SENTENCE)
+    assert artifact["primary_definition"] is None
+    assert artifact["gate"] == {"path": str(rp.GATE_ARTIFACT), "sha256": _sha(gate_bytes),
+                                "outcome": json.loads(gate_bytes)["outcome"]}
+    assert artifact["declaration"] == {"path": str(rp.DECLARATION_ARTIFACT), "sha256": _sha(declaration_bytes)}
+    assert artifact["exposure"] == {tier: declared["tiers"][tier]["exposure"] for tier in hz.TIER_ORDER}
+    assert artifact["what_this_is_not"] == list(rp.WHAT_THIS_IS_NOT)
+    assert artifact["leaders"] == rp.leaders(cells)
+    assert artifact["cells"] == rp.cell_summaries(cells)
+    assert artifact["episodes"] == {cell_id: [dict(r) for r in cell.rows] for cell_id, cell in cells.items()}
+    assert artifact["training"] == {"clock": pb.CLOCK_LABEL, "rows": training}
+    assert artifact["old_cells"] == {"format_version": old["format_version"],
+                                     "sha256": _sha(json.dumps(old, sort_keys=True).encode("utf-8")),
+                                     "counterparts": {arm: entry["counterpart"] for arm, entry in old["cells"].items()},
+                                     "pending": list(old["pending"])}
+
+
+def test_the_cli_names_its_two_commands() -> None:
+    parse = rp.build_parser().parse_args
+    old = parse(["old-cells", "--out", "o.json"])
+    assert (old.command, old.out, old.output_root) == ("old-cells", "o.json", str(hz.MAIN_OUTPUT_ROOT))
+    report = parse(["report", "--out", "r.json", "--old-cells", "o.json"])
+    assert (report.command, report.out, report.old_cells, report.output_root) == ("report", "r.json", "o.json",
+                                                                                  str(hz.MAIN_OUTPUT_ROOT))
+
+
+def test_the_exposure_is_each_tiers_own(tmp_path: Path) -> None:
+    # Mutant R2 (every tier given maxpressure's exposure) cannot be told apart on the committed declaration, whose four
+    # tiers hold the same 1,152,000 decisions; a declaration whose tiers differ tells it apart.
+    data = tmp_path / "docs" / "data"
+    data.mkdir(parents=True)
+    (data / rp.GATE_ARTIFACT.name).write_bytes((REPO / rp.GATE_ARTIFACT).read_bytes())
+    declared = json.loads((REPO / rp.DECLARATION_ARTIFACT).read_bytes())
+    for index, tier in enumerate(hz.TIER_ORDER):
+        declared["tiers"][tier]["exposure"] = {"steps": 40_000 + index, "marker": tier}
+    (data / rp.DECLARATION_ARTIFACT.name).write_text(json.dumps(declared), encoding="utf-8")
+    grid, provenance = _grid_counterparts()
+    artifact = rp.report_artifact(cells=_hz4x4_cells(), training=[], old=rp.old_cells(grid, provenance=provenance),
+                                  repo_root=tmp_path)
+    assert artifact["exposure"] == {tier: {"steps": 40_000 + index, "marker": tier}
+                                    for index, tier in enumerate(hz.TIER_ORDER)}
+
+
+# ======================================================================
+# BRIEF_48 Amendment I: I.3-2's check on the training records' code, I.3-3's label on the shared random anchor
+# ======================================================================
+
+
+def test_the_training_block_refuses_a_record_not_trained_by_the_campaigns_run_tree(tmp_path: Path) -> None:
+    assert rp.CAMPAIGN_GIT == CAMPAIGN_GIT
+    _training_tree(tmp_path)
+    assert len(rp.training_block(tmp_path)) == 100
+    tier, arm, seed = pb.training_cells()[57]
+    record_path = pb.train_record_path(tmp_path, tier, arm, seed)
+    record = json.loads(record_path.read_bytes())
+    for git in ({**CAMPAIGN_GIT, "commit": "14a6ba229d702d9155640486e1e7057e39e3502d"},  # H.3's smoke tree
+                {**CAMPAIGN_GIT, "dirty": True},
+                {**CAMPAIGN_GIT, "code_root": "/home/filip/rltraffic-p93-run-b"},
+                {"commit": CAMPAIGN_GIT["commit"], "dirty": False}):  # no code root at all
+        record_path.write_text(json.dumps(dict(record, git=git)), encoding="utf-8")
+        with pytest.raises(ValueError, match="4dcbedc25021634c199897beffeab4d806b9afc2"):
+            rp.training_block(tmp_path)
+    record_path.write_text(json.dumps(record), encoding="utf-8")
+    assert len(rp.training_block(tmp_path)) == 100
+
+
+def test_old_cells_label_the_random_counterpart_as_the_grids_shared_anchor() -> None:
+    grid, provenance = _grid_counterparts()
+    old = rp.old_cells(grid, provenance=provenance)
+    anchor = old["cells"]["random@mappo1000"]
+    assert anchor["counterpart"] == st.ANCHOR_CELL
+    assert anchor["label"] == "the grid's shared random anchor (one cell for every tier)"
+    assert [arm for arm, entry in old["cells"].items() if entry["label"] is not None] == ["random@mappo1000"]
+
+
+# ======================================================================
+# BRIEF_48 J.9: the author's ruling of 2026-11-01 made mechanical -- no old-cells artifact with a cell pending, and no
+# report on one.  old_cells() itself, and its test of the 18 pending, stay as they are until P9.1's reader (J.9).
+# ======================================================================
+
+
+class _GridInputs:
+    """Stands in for ``tier_statements.load_inputs``' result: the synthetic counterparts and their provenance."""
+
+    def __init__(self) -> None:
+        self.cells, self.provenance = _grid_counterparts()
+
+
+def test_old_cells_refuses_to_write_while_any_counterpart_is_pending(tmp_path: Path,
+                                                                     monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(st, "load_inputs", lambda roots, **kwargs: _GridInputs())
+    # BRIEF_48 K.2: old-cells now reads P9.1's two artifacts and leaves nothing pending; without their records -- the
+    # state J.9's ruling guards -- the 18 are pending, and the command must refuse.
+    monkeypatch.setattr(rp, "read_p9_1_artifacts", lambda repo_root: None)
+    out = tmp_path / "data" / "p9_3_old_cells.json"
+    out.parent.mkdir()
+    args = rp.build_parser().parse_args(["old-cells", "--out", str(out), "--output-root", str(tmp_path / "output")])
+    with pytest.raises(ValueError, match="J\\.9") as refused:
+        rp._run_old_cells(args)
+    assert "2026-11-01" in str(refused.value)
+    assert all(f"{method}@{tier}" in str(refused.value) for method, tier in rp.P9_1_COUNTERPARTS)
+    assert list(out.parent.iterdir()) == []
+    # The control: with nothing pending, the same call writes its artifact.
+    monkeypatch.setattr(rp, "P9_1_COUNTERPARTS", ())
+    assert rp._run_old_cells(args) == 0
+    written = json.loads(out.read_bytes())
+    assert (written["format_version"], written["pending"], len(written["cells"])) == (rp.ARTIFACT_FORMAT_OLD_CELLS, {}, 7)
+
+
+def test_report_refuses_an_old_cells_artifact_with_a_pending_cell(tmp_path: Path) -> None:
+    grid, provenance = _grid_counterparts()
+    old = rp.old_cells(grid, provenance=provenance)
+    assert len(old["pending"]) == 18
+    data = tmp_path / "data"
+    data.mkdir()
+    old_path = data / "p9_3_old_cells.json"
+    old_path.write_text(json.dumps(old), encoding="utf-8")
+    out = data / "p9_3_hz4x4.json"
+    args = rp.build_parser().parse_args(["report", "--out", str(out), "--old-cells", str(old_path),
+                                         "--output-root", str(tmp_path / "output")])
+    with pytest.raises(ValueError, match="J\\.9") as refused:
+        rp._run_report(args)
+    assert "2026-11-01" in str(refused.value) and "bc_m@mappo1000" in str(refused.value)
+    assert sorted(path.name for path in data.iterdir()) == ["p9_3_old_cells.json"]
+    # The control: with nothing pending, the check lets the report through to its own reading of the records, which this
+    # empty output root does not hold.
+    old_path.write_text(json.dumps(dict(old, pending={})), encoding="utf-8")
+    with pytest.raises(FileNotFoundError, match="missing"):
+        rp._run_report(args)
+    assert sorted(path.name for path in data.iterdir()) == ["p9_3_old_cells.json"]
+
+
+def test_the_old_cells_command_writes_all_25_from_the_pinned_artifacts(tmp_path: Path,
+                                                                      monkeypatch: pytest.MonkeyPatch) -> None:
+    # K.2 end to end: the command reads the repository's two pinned P9.1 artifacts (the grid's inputs stand in), copies the
+    # 18 beside the seven, and writes one artifact with nothing pending.
+    monkeypatch.setattr(st, "load_inputs", lambda roots, **kwargs: _GridInputs())
+    out = tmp_path / "p9_3_old_cells.json"
+    args = rp.build_parser().parse_args(["old-cells", "--out", str(out), "--output-root", str(tmp_path / "output")])
+    assert rp._run_old_cells(args) == 0
+    written = json.loads(out.read_bytes())
+    assert (len(written["cells"]), written["pending"]) == (25, {})
+    assert {entry["artifact_sha256"] for entry in written["cells"].values() if entry["source"] == "p9_1"} == {
+        "d49088c369cefabf95d58286682ddfb876d61c9218f51ea902a85de28956adf8",
+        "b49ebefd8886cdb2ca26b54ebb5097e4bf9a73711fece1a5ebcf4fbb07f8b103"}
+
+
+# ----------------------------------------------------------------------
+# T-regress (BRIEF_48 Amendment L, L.4): both committed artifacts, rebuilt from the run directories
+# ----------------------------------------------------------------------
+
+#: The commit both artifacts were built at (K.2-3; verified in L.1).  Their ``git`` block is
+#: ``compute_latency._git_provenance``'s -- the HEAD of the tree whose code runs -- so a rebuild reproduces its ``commit``
+#: and ``dirty`` only at this commit.  The T-regress therefore runs the module's own commands from a checkout of it, as
+#: L.1's rebuild from a scratch clone at it did.  A T-regress pins committed bytes, so it was never red first (L.4).
+BUILD_COMMIT = "d3d399cb1b6cf34a92e351397f504ba109d0604e"
+COMMITTED_OLD_CELLS = REPO / "docs" / "data" / "p9_3_old_cells.json"
+COMMITTED_REPORT = REPO / "docs" / "data" / "p9_3_hz4x4.json"
+#: What the two commands read under the output root: P5.2c's pinned loader (P5.1's and P5.2's evaluation files by their
+#: SHA256SUMS, and P8.4b's campaign) and P9.3's run directories.
+T_REGRESS_INPUTS = ("SHA256SUMS_p5_1.txt", "SHA256SUMS_p5_2.txt", "p8_4b_rederivation/CAMPAIGN_COMPLETE", "p9_3/eval",
+                    "p9_3/train", "p9_3/checkpoints")
+
+
+def _t_regress_output_root() -> Path:
+    """``RLTRAFFIC_OUTPUT_ROOT``, holding every input the two commands read -- or a skip that names what is missing."""
+    value = os.environ.get("RLTRAFFIC_OUTPUT_ROOT")
+    if not value:
+        pytest.skip("RLTRAFFIC_OUTPUT_ROOT is not set: the T-regress rebuilds p9_3_old_cells.json and p9_3_hz4x4.json "
+                    "from the main tree's output/ (P5.2c's pinned inputs, P8.4b's campaign and output/p9_3)")
+    output = Path(value)
+    missing = [name for name in T_REGRESS_INPUTS if not (output / name).exists()]
+    if missing:
+        pytest.skip(f"{output} lacks {', '.join(missing)}: set RLTRAFFIC_OUTPUT_ROOT to the main tree's output/")
+    return output
+
+
+def _checkout_build_commit(destination: Path) -> Path:
+    """``BUILD_COMMIT`` checked out at *destination* (``--shared``: the objects are read from this repository, and nothing
+    is written outside *destination*), or a skip when this clone's history lacks it."""
+    if shutil.which("git") is None:
+        pytest.skip("git is not installed: the T-regress rebuilds at the artifacts' build commit")
+    known = subprocess.run(["git", "-C", str(REPO), "cat-file", "-e", f"{BUILD_COMMIT}^{{commit}}"], capture_output=True)
+    if known.returncode != 0:
+        pytest.skip(f"commit {BUILD_COMMIT[:7]} is not in this clone's history (a shallow checkout): the T-regress "
+                    "rebuilds at the artifacts' build commit")
+    for command in (["git", "clone", "--quiet", "--shared", "--no-checkout", str(REPO), str(destination)],
+                    ["git", "-C", str(destination), "checkout", "--quiet", "--detach", BUILD_COMMIT]):
+        subprocess.run(command, check=True, capture_output=True)
+    return destination
+
+
+@pytest.fixture(scope="module")
+def t_regress_rebuild(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
+    """``old-cells``, then ``report`` on the rebuilt old cells: the module's own commands, run from the build commit's
+    checkout on the run directories, each writing into the test's temporary directory (no bytecode either)."""
+    output = _t_regress_output_root()
+    work = tmp_path_factory.mktemp("t_regress")
+    code = _checkout_build_commit(work / "code")
+    env = {**os.environ, "PYTHONPATH": str(code), "PYTHONDONTWRITEBYTECODE": "1"}
+    old_cells_out, report_out = work / "p9_3_old_cells.json", work / "p9_3_hz4x4.json"
+    for argv in (["old-cells", "--out", str(old_cells_out), "--output-root", str(output)],
+                 ["report", "--out", str(report_out), "--old-cells", str(old_cells_out), "--output-root", str(output)]):
+        done = subprocess.run([sys.executable, "-P", "-m", "offline.hz4x4_report", *argv], cwd=work, env=env,
+                              capture_output=True, text=True)
+        assert done.returncode == 0, f"{argv[0]} exited {done.returncode}: {done.stderr[-2000:]}"
+    return {"code": code, "old_cells": json.loads(old_cells_out.read_bytes()),
+            "report": json.loads(report_out.read_bytes())}
+
+
+def _differences(rebuilt: Any, committed: Any, path: str = "") -> list[str]:
+    """Where two parsed artifacts differ, key by key -- the assertion's message; the assertion itself is ``==``."""
+    if isinstance(rebuilt, dict) and isinstance(committed, dict):
+        out = [f"{path}.{key}: in one only" for key in sorted(set(rebuilt) ^ set(committed))]
+        for key in sorted(set(rebuilt) & set(committed)):
+            out += _differences(rebuilt[key], committed[key], f"{path}.{key}")
+        return out
+    if isinstance(rebuilt, list) and isinstance(committed, list) and len(rebuilt) == len(committed):
+        return [d for i, (a, b) in enumerate(zip(rebuilt, committed)) for d in _differences(a, b, f"{path}[{i}]")]
+    return [] if rebuilt == committed else [path or "."]
+
+
+def _old_cells_digest(artifact: dict[str, Any]) -> str:
+    """The construction ``report_artifact`` names the old cells by: the sha256 of their canonical JSON."""
+    return hashlib.sha256(json.dumps(artifact, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _assert_rebuilt_is_committed(rebuilt: dict[str, Any], committed: dict[str, Any], code: Path) -> None:
+    """Every key under ``==``; the ``git`` block's ``commit`` and ``dirty`` equal, and its ``code_root`` -- the tree that
+    ran, which must be the build commit's checkout -- set aside (L.4)."""
+    assert Path(rebuilt["git"]["code_root"]).resolve() == code.resolve()
+    assert [rebuilt["git"][key] for key in ("commit", "dirty")] == [committed["git"][key] for key in ("commit", "dirty")]
+    ours = {**rebuilt, "git": {k: v for k, v in rebuilt["git"].items() if k != "code_root"}}
+    theirs = {**committed, "git": {k: v for k, v in committed["git"].items() if k != "code_root"}}
+    # Each comparison is evaluated into a bool before it is asserted: pytest's own explanation of a failed ``==`` between
+    # two multi-megabyte artifacts diffs their whole representations and runs for minutes, so the message is ours.
+    same = ours == theirs
+    assert same, _differences(ours, theirs)[:10]
+    same_text = json.dumps(ours, sort_keys=True) == json.dumps(theirs, sort_keys=True)
+    assert same_text, "the canonical JSON differs where == does not: a type or a sign (1 against 1.0, 0.0 against -0.0)"
+
+
+def test_t_regress_the_old_cells_artifact_rebuilds_from_the_run_directories(t_regress_rebuild: dict[str, Any]) -> None:
+    """L.4: ``docs/data/p9_3_old_cells.json``, rebuilt by ``old-cells`` at its build commit from the run directories,
+    equals the committed artifact in every key."""
+    committed = json.loads(COMMITTED_OLD_CELLS.read_bytes())
+    _assert_rebuilt_is_committed(t_regress_rebuild["old_cells"], committed, t_regress_rebuild["code"])
+
+
+def test_t_regress_the_report_artifact_rebuilds_from_the_run_directories(t_regress_rebuild: dict[str, Any]) -> None:
+    """L.4: ``docs/data/p9_3_hz4x4.json``, rebuilt by ``report`` on the rebuilt old cells, equals the committed artifact
+    in every key.  Its ``old_cells.sha256`` is recomputed from the committed old cells; the rebuilt report's names the
+    rebuilt old cells, whose ``code_root`` is the checkout's, and is recomputed from them."""
+    committed = json.loads(COMMITTED_REPORT.read_bytes())
+    rebuilt = t_regress_rebuild["report"]
+    assert committed["old_cells"]["sha256"] == _old_cells_digest(json.loads(COMMITTED_OLD_CELLS.read_bytes()))
+    assert rebuilt["old_cells"]["sha256"] == _old_cells_digest(t_regress_rebuild["old_cells"])
+
+    def without_digest(artifact: dict[str, Any]) -> dict[str, Any]:
+        return {**artifact, "old_cells": {k: v for k, v in artifact["old_cells"].items() if k != "sha256"}}
+
+    _assert_rebuilt_is_committed(without_digest(rebuilt), without_digest(committed), t_regress_rebuild["code"])

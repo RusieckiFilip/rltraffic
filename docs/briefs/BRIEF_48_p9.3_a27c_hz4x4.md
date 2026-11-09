@@ -1806,3 +1806,59 @@ The walk, `ONE_SIDED_PAIRS`, `_expected_p_value` and the `moved == []` assertion
 - **P9.3:** the fix round (L.5-2).
 - **The author:** relay L.5-2 to P9.3, and apply P9.1's ceiling patch (`docs/patches/ci_gate_ceiling_451_p9_1_m2.patch`).
 - **The coordinator:** after "P9.3 fix round done", the verification and the merge; then P9.3's CI ceiling.
+
+---
+
+# ✅ AMENDMENT M — 2026-11-09: G5's fix round VERIFIED (`cda5657`, `b6b02d4`, `77cf695`); G5 PASSED; P9.3 MERGED, §6 ticked; A27's round COMPLETE
+
+## M.1 The fix round, verified
+- **The chain since `b883e48`:**
+  - `31b265b`, the merge of `main` at `7f0b627`: its tree differs from `main`'s only in the branch's own paths;
+  - `cda5657`: `tests/test_erfc_determinism.py` only;
+  - `b6b02d4`: `tests/test_hz4x4_report.py` only (+120);
+  - `77cf695`: the packet only.
+
+  None carries an AI trailer, and no frozen path changed.
+  - The two artifacts are byte-identical to `97abd39`.
+  - `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` have `4dcbedc`'s bytes, and `offline/hz4x4_report.py` has
+    `d3d399c`'s.
+- **`cda5657` is L.3's four changes and nothing else.**
+  - By AST, the only statements of the guard test that differ are its docstring and its count assertion. The count moves
+    771 → 779, and the compared expression is unchanged.
+  - The docstring's first line is L.3's, and the rest of it is unchanged.
+  - L.3's quotation is verbatim (715 characters, compared by program).
+- **`b6b02d4` is L.4's T-regress:** one test per artifact.
+  - **It skips** with a named reason without `RLTRAFFIC_OUTPUT_ROOT` or its inputs, and in a clone whose history lacks the build
+    commit.
+  - **It runs the build code.** A `--shared --no-checkout` clone in the test's temporary directory checks out the build commit
+    `d3d399c`, so nothing is written outside it. The module's two commands run there.
+  - **It compares:**
+    - every key under `==`;
+    - the git block's `commit` and `dirty` equal, its `code_root` the checkout's and set aside;
+    - the old cells' canonical digest, recomputed on both sides;
+    - a canonical-text comparison beside `==`.
+- **In the coordinator's clone at `77cf695`:**
+  - the guard's file: `57 passed`;
+  - the T-regress: `2 passed` with `RLTRAFFIC_OUTPUT_ROOT`, and `2 skipped` with the named reason without it;
+  - `output/p9_3` unchanged (12,828 files);
+  - the whole suite in CI's setting: `3 failed, 4162 passed, 278 skipped, 30 warnings in 1329.06s (0:22:09)`; the three failures are the sandbox's tmux refusals.
+- **The packet's fix-round section** records the commits, the guard's run, the kill table (the three required mutants and four
+  more), the tails and the diff stat.
+
+## M.2 Rulings
+1. **G5 PASSED.**
+2. **P9.3's three flags:**
+   1. **The T-regress runs the build commit's code.** L.4's "commit equal" requires it. Today the tip's `hz4x4_report.py` has
+      `d3d399c`'s bytes, so the two are the same code. A later change to the module needs a current-code rebuild test beside it
+      (`DEFERRED` 127).
+   2. **Each comparison is evaluated before it is asserted:** accepted. `==` is unchanged; only pytest's minutes-long diff of two
+      multi-megabyte artifacts is avoided.
+   3. **The merge brought the ceiling commit `7f0b627`.** That is correct. P9.3's CI skips are measured on its merge's own run.
+3. **Merge P9.3** now: `--no-ff`, with §6 ticked. The merge carries:
+   - this amendment and plan v3.50;
+   - `DEFERRED` 125 CLOSED (`cda5657`), and 126 (L.2-3) and 127 (M.2-2) opened.
+4. **A27's round is complete.** P9.1 (`BRIEF_46`), P9.2 (`BRIEF_47`) and P9.3 are merged. No further run follows (A25(c), as A27
+   amends it). The paper track computes its own statistics from the committed files (A27(a)).
+5. **Machine B's `output/p9_3` and its tar** were kept until P9.3 merged (K.3). Removing them is the author's ruling: nothing under
+   `output/` is deleted without it.
+6. **Next:** the CI ceiling for this merge, measured on its run and handed to the author as a patch.

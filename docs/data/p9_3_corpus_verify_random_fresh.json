@@ -1,0 +1,70 @@
+{
+  "all_verified": true,
+  "checks": "offline.hz4x4_ladder.verify_run per run: the manifest's run metadata against the derived command as offline.collect's own parser reads it (settings, randomiser parameters, source flow path and sha256, metrics, epsilon, draws, checkpoint), the episode count, every draw's flow_draw_sha256 against the main tree's materialised flow.json, and a teacher checkpoint's recorded sha256 against the file",
+  "collected_by_git_hashes": [
+    "7b6b59a805ccf85fd8a6a5ceca1ab75fc533f7ae"
+  ],
+  "format_version": "p9.3-corpus-verify/1.0",
+  "git": {
+    "code_root": "/home/filip/rltraffic-p93",
+    "commit": "c5bf6e3ba171f2856c336fc4291c7134a8299275",
+    "dirty": false
+  },
+  "label": "8 -- conditional generalizability extension registered after the grid results",
+  "n_episodes": 200,
+  "n_flow_digests_checked": 200,
+  "n_runs": 1,
+  "registered_in": "BRIEF_48 Amendment B, B.2 and B.5.1",
+  "runs": [
+    {
+      "distinct_schedules": {
+        "episodes": 200,
+        "joint_distinct": 200,
+        "per_intersection_distinct": {
+          "intersection_1_1": 200,
+          "intersection_1_2": 200,
+          "intersection_1_3": 200,
+          "intersection_1_4": 200,
+          "intersection_2_1": 200,
+          "intersection_2_2": 200,
+          "intersection_2_3": 200,
+          "intersection_2_4": 200,
+          "intersection_3_1": 200,
+          "intersection_3_2": 200,
+          "intersection_3_3": 200,
+          "intersection_3_4": 200,
+          "intersection_4_1": 200,
+          "intersection_4_2": 200,
+          "intersection_4_3": 200,
+          "intersection_4_4": 200
+        }
+      },
+      "distinct_sequences_per_intersection": {
+        "intersection_1_1": 200,
+        "intersection_1_2": 200,
+        "intersection_1_3": 200,
+        "intersection_1_4": 200,
+        "intersection_2_1": 200,
+        "intersection_2_2": 200,
+        "intersection_2_3": 200,
+        "intersection_2_4": 200,
+        "intersection_3_1": 200,
+        "intersection_3_2": 200,
+        "intersection_3_3": 200,
+        "intersection_3_4": 200,
+        "intersection_4_1": 200,
+        "intersection_4_2": 200,
+        "intersection_4_3": 200,
+        "intersection_4_4": 200
+      },
+      "episodes": 200,
+      "flow_digests_checked": 200,
+      "git_hash": "7b6b59a805ccf85fd8a6a5ceca1ab75fc533f7ae",
+      "name": "cf_hz4x4__random_fresh",
+      "random_rng_scheme": "per-episode"
+    }
+  ],
+  "tiers": [
+    "random_fresh"
+  ]
+}
