@@ -271,7 +271,7 @@ def test_it_returns_the_correctly_rounded_value_where_two_libms_disagree() -> No
 
 
 def test_the_committed_p_values_all_still_reproduce_exactly() -> None:
-    """THE LOAD-BEARING TEST: 487 published p-values (322 -> 330 -> 339 -> 351 -> 487), none of which may move.
+    """THE LOAD-BEARING TEST: 779 published p-values (322 -> 330 -> 339 -> 351 -> 487 -> 771 -> 779), none of which may move.
 
     Recomputed from each artifact's own recorded ``z`` through the replacement routine and
     compared with ``==``.  A tolerance here would defeat the purpose: the question is
@@ -392,14 +392,28 @@ def test_the_committed_p_values_all_still_reproduce_exactly() -> None:
     #          .wilcoxon
     # Nothing else in this test changes: the walk, ONE_SIDED_PAIRS, _expected_p_value and the `moved == []`
     # assertion are untouched, so all 771 are still recomputed and compared under == (T.3).
-    assert len(pairs) == 771, (
-        f"expected the 771 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 "
+    #
+    # 771 -> 779 on 2026-11-09, AUTHORISED IN WRITING (BRIEF_48 Amendment L, L.3), quoted verbatim:
+    # "test_erfc_determinism 771 -> 779 AUTHORISED (BRIEF_48 Amendment L, L.3, 2026-11-09), same footing as BRIEF_29
+    # section 1 B, the 2026-09-10 authorisation, BRIEF_42 Amendment E.1, BRIEF_45 Amendment B.2 and BRIEF_46 Amendment
+    # T, T.3. The 8 are P9.3's two-sided Wilcoxon blocks in docs/data/p9_3_hz4x4.json (committed at 97abd39), enumerated
+    # by the guard's own paths: p9_3_hz4x4.json.leaders[*].leader_minus_runner_up[*].paired_comparison.wilcoxon, 8. None
+    # carries an alternative key, so ONE_SIDED_PAIRS is unchanged; none has n_used = 0; all 779 reproduce under ==
+    # through _expected_p_value (the coordinator's run of the guard's own walk at b883e48). The docstring's first line
+    # moves with the literal (DEFERRED 125)."
+    # Besides the literal, this paragraph, the message and the docstring's first line, nothing in this test
+    # changes: the walk, ONE_SIDED_PAIRS, _expected_p_value and the `moved == []` assertion are untouched, so
+    # all 779 are still recomputed and compared under == (L.3).
+    assert len(pairs) == 779, (
+        f"expected the 779 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 "
         f"P5.3a copies out of p4_6_grid.json / p4_7_grid.json (BRIEF_29 section 1 B), plus the 9 "
         f"P5.3b wilcoxon blocks in p5_3b_nortg.json (authorised 2026-09-10), plus the 12 P5.3c one-sided "
         f"tests in p5_3c_context_sweep.json (BRIEF_42 Amendment E.1, authorised 2026-10-02), plus the 136 "
         f"P5.2c Wilcoxon blocks in p5_2_statements.json (BRIEF_45 Amendment B.2, authorised 2026-10-13), plus the 284 "
-        f"P9.1 two-sided Wilcoxon blocks in docs/data/p9_1_*.json (BRIEF_46 Amendment T, T.3, authorised 2026-11-06) "
-        f"-- found {len(pairs)}; if artifacts were added, re-measure and update this count deliberately"
+        f"P9.1 two-sided Wilcoxon blocks in docs/data/p9_1_*.json (BRIEF_46 Amendment T, T.3, authorised 2026-11-06), "
+        f"plus the 8 P9.3 two-sided Wilcoxon blocks in docs/data/p9_3_hz4x4.json (BRIEF_48 Amendment L, L.3, "
+        f"authorised 2026-11-09) -- found {len(pairs)}; if artifacts were added, re-measure and update this count "
+        f"deliberately"
     )
 
     # E.1.2(4): path AND alternative compared, so a key added to an existing two-sided pair, or a test relabelled,
