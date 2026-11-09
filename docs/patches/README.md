@@ -1,5 +1,56 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_487_p9_3.patch` — the skip ceiling moves 451 → 487 after P9.3's merge; every new skip is one of P9.3's corpus-, CityFlow-, output- or history-gated tests
+
+**Apply with:**
+```bash
+cd /home/filip/rltraffic && git apply docs/patches/ci_gate_ceiling_487_p9_3.patch && .venv/bin/pytest tests/test_ci_gate.py -q && git add .github/ci/ci_baseline.json tests/test_ci_gate.py && git commit -m "ci(ceiling): 451 -> 487 OBSERVED on run 42625796960 at d2ea2f3 -- P9.3's corpus-, CityFlow-, output- and history-gated tests" && git push origin main
+```
+The push also carries the coordinator's unpushed docs commit beneath it: this patch, this entry and plan v3.51. One push, one CI
+run.
+
+**Measured, not read off a summary.**
+- **The run:** `42625796960` on `main` at `d2ea2f3`, the two-parent merge of `task/p9.3-a27c`.
+  - The suite step PASSED on both legs and only the ceiling gate failed: the registered route working.
+  - The three guards, the wheel gate and `libc-matrix` passed.
+- **Leg against leg:** both legs downloaded, and every `<skipped>` message extracted from `junit.xml` (`output/ci_runs/skips.py`).
+  Identical: 4,443 tests, 487 skipped, 0 failures, 0 errors, 113 distinct texts on both.
+- **Run against run,** against the last green run on `main`, `42613992146` at `7f0b627` (4,274 tests, 451 skipped — the current
+  ceiling). **36 new skips in 9 texts, nothing removed:**
+  - +16 `corpus_or_checkpoint`:
+    - *"the main tree's datasets_v11 grid corpus is not on this machine"* (9);
+    - *"hz4x4's corpus and held-out draws … are not on this machine"* (5);
+    - *"hz4x4's collected corpus … is not on this machine"* (1);
+    - *"the main tree's v1.1 corpus manifests or its materialised draws 1-5 are not on this machine"* (1);
+  - +14 `cityflow`: *"the native cityflow engine is not importable here"*;
+  - +5 `campaign_output`:
+    - *"RLTRAFFIC_OUTPUT_ROOT is not set: the T-regress rebuilds p9_3_old_cells.json and p9_3_hz4x4.json …"* (2);
+    - *"the grid's committed evaluation output … is not here"* (2);
+    - *"P2.1's results.json is not under the main tree's output/"* (1);
+  - +1 `shallow_checkout`: *"commit 14a6ba2 is not in this clone's history"*. The runner's checkout is shallow;
+  - the merge's seven P9.3 test files account for the whole difference in collected tests (4,274 → 4,443, +169). P9.3's
+    forecast from its own machine was 36 new skips.
+
+**What the patch changes:**
+- `skip_ceiling` 451 → 487;
+- `skip_breakdown`: `corpus_or_checkpoint` +16, `cityflow` +14, `campaign_output` +5, `shallow_checkout` +1;
+- `ceiling_if_cityflow_were_built` (the ceiling minus the CityFlow-gated skips) recomputed: 425;
+- a new `measured` block whose `superseded` is the 451 block, with its `why_it_was_wrong` ("EXPIRED AS DECLARED");
+- `tests/test_ci_gate.py`: `CEILING_CHAIN` gains 487 at its head, its one literal.
+
+**Verified before handing it over:**
+- **The builder.** `output/ci_runs/build_ceiling_patch_p93.py`, with its classification in `output/ci_runs/classification_p93.json`,
+  built the patch.
+  - It refuses a leg with a failure, a removed message, an unclassified new message or an unused classification.
+  - It checks that `d2ea2f3` is the two-parent merge of `task/p9.3-a27c`.
+- **On a scratch worktree of `main` with the patch applied:**
+  - `tests/test_ci_gate.py` 34 passed;
+  - the gate on both legs' real reports (`ci_gate.py pytest-gate`) exits 0 with the patched baseline and 1 with `main`'s
+    unpatched one.
+- **Four mutants of the patched baseline each fail `tests/test_ci_gate.py`:** the breakdown off by one, the CityFlow alternative off
+  by one, the chain link changed, and the `why_it_was_wrong` removed.
+- **The last checks.** `git apply --check` is clean on `main`, and `scripts/check_english.sh` exits 0 on the patch.
+
 ## `ci_gate_ceiling_451_p9_1_m2.patch` — the skip ceiling moves 428 → 451 after P9.1's merge M2; every new skip is one of P9.1's output-, corpus-, CityFlow- or history-gated tests
 
 **Apply with:**
