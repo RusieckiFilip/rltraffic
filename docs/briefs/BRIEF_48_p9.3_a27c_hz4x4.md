@@ -1650,3 +1650,159 @@ Run them in your own session, with no token and nothing in the author's tmux: CP
 - Machine B's `output/p9_3` and its tar stay until P9.3 merges.
 - The two preview files stay as J.11 pinned them.
 - The coordinator has still not seen hz4x4's numbers. Its G5 reads them from the committed artifact.
+
+---
+
+# ⚠️ AMENDMENT L — 2026-11-09: G5 — P9.3's two artifacts (`97abd39`) and packet (`b883e48`) VERIFIED by the coordinator's independent check; ONE FIX ROUND: the p-value guard's count 771 → 779 AUTHORISED with its docstring line (`DEFERRED` 125), and the registered T-regress, which is missing, added; the merge after the fix
+
+This is the coordinator's one review (G5, §6). The coordinator's own scripts were read-only on `output/` and the corpus and printed
+counts, flags and digests. hz4x4's numbers were read for the first time here, from the committed artifact (K.3).
+
+## L.1 What was verified
+- **The chain since `12ebfcb`:**
+  - `63bd27f`, a merge of `main` at `adadadc`, and `664008b`, a merge at `96558aa`: each differs from `main` only in the
+    branch's own paths;
+  - `a48bd43`: `tests/test_hz4x4_report.py` only;
+  - `d3d399c`: `offline/hz4x4_report.py` and one test;
+  - `97abd39`: the two artifacts, alone;
+  - `b883e48`: the packet only.
+
+  None carries an AI trailer and no frozen path changed. `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` still have
+  `4dcbedc`'s bytes. No existing `docs/data` file changed: twelve `p9_3_*` files were added. No dependency was added.
+  `check_english.sh` and `check_test_hygiene.sh` are clean on the changed files.
+- **`d3d399c`, read against K.2-2:**
+  - `read_p9_1_artifacts` refuses a file whose bytes are not K.1's pinned sha256.
+  - `p9_1_source` is J.9's map: `random_fresh` from A27(d)'s artifact, every other tier from A27(b)'s.
+  - Refused: a missing key, a cell that is not exactly the 500 records of the five seeds × draws 1000–1099, and a record whose
+    `arm` or `tier` is not its cell's.
+  - Every field is copied, in (seed, draw) order, with the artifact's path, sha256 and record key; `pending` is empty, and
+    `refuse_pending` is unchanged.
+- **The records.** All 12,500 episode rows of `p9_3_hz4x4.json` equal their files under `output/p9_3/eval/`, each with its
+  `reproduces` true, and every evaluation file is used once and no other:
+  - route (i)'s `att_horizon`, `episode_reward` and `horizon_vehicle_count`;
+  - route (ii)'s `att_ours`, `att_engine` and the companions.
+- **The old cells:** 25, with `pending` empty.
+  - **The 18:** each equals its pinned P9.1 artifact's record in every field, in order, from the artifact J.9's map names.
+  - **The 7:** each equals the records `BRIEF_46` T.1 verified against their raw sources.
+  - **The report's view of them:** its counterparts and pending list equal the artifact's, and its `old_cells.sha256` is the
+    digest of the artifact's canonical JSON (L.2-3).
+- **The numbers:**
+  - **Each of the 25 cells:** mean, std, CI (1.96, `ddof = 1`, over its 500 episodes), median, IQR and per-seed means under both
+    definitions, and the companions' means.
+  - **The 8 leaders blocks:** the levels, the order, the leader and runner-up, and the leader-minus-runner-up paired difference
+    over per-draw means; the reading's "resolves"; the per-seed first places; and the definition dependence, on `random_fresh`
+    only.
+  - **The 40 reference levels.**
+- **Provenance:**
+  - format, label, and the git block `d3d399c` (clean);
+  - the gate's file and outcome: c4 failed, no primary;
+  - the declaration's file and the exposure;
+  - **training:** the 100 rows equal their records on disk, at `4dcbedc` (clean), 40,000 steps each, each checkpoint's sha256
+    its record's (283 MB hashed);
+  - **evaluation:** every trained-arm episode, 10,000 of them, names its seed's checkpoint and record.
+- **The coordinator's rebuild.** `old-cells`, then `report`, from a scratch clone at `d3d399c`, on the main tree's `output/`
+  (read-only):
+  - both artifacts equal the committed ones in every key but the git block's `code_root`, which names the clone;
+  - with the committed `code_root`, the old cells' canonical digest is the committed one;
+  - `output/p9_3` is unchanged (12,828 files).
+- **The packet's numbers.** The 25-row table (six values each, two decimals) and the eight readings with their flags equal the
+  artifact's.
+- **P9.3's flag, checked, not interpreted:**
+  - `dt_nomix@fixedtime` and `behaviour@fixedtime` are equal on 477 of 500 episodes under `att_ours`, and 476 under
+    `att_engine`;
+  - the DT's 500 come from five distinct checkpoints, 100 each;
+  - `behaviour@fixedtime`'s five seeds agree on all 100 draws, as a deterministic plan's do.
+- **The registered files:** all 20,904 entries of the 23 `output/SHA256SUMS_*.txt` are unchanged.
+- **The guard at `b883e48`,** from the coordinator's run of its own walk and `_expected_p_value` in a clone:
+  - 779 pairs: the 771 outside `p9_3_*`, unchanged, and 8 in `p9_3_hz4x4.json`, in one class;
+  - none carries an `alternative` key, none has `n_used = 0` (the minimum is 99), and the one-sided set is `ONE_SIDED_PAIRS`;
+  - **0 of 779 move under `==`.**
+
+## L.2 Findings
+1. **The p-value guard's pinned count** (the fix round): `assert 779 == 771`, as K.2-4 foresaw. No published p-value moves.
+2. **The registered T-regress is missing** (the fix round).
+   - It is registered and promised in four places:
+     - A27(a): *"every new cell … lands in a NEW artifact under `docs/data/` (prefix `p9_`) with a T-regress"*;
+     - this brief's §5 (*"report T-regress"*);
+     - §7, the Definition of Done (*"the artifact with … A27's label and T-regress"*);
+     - P9.3's own plan (*"report T-regress … added with Phase B"*).
+   - No test rebuilds either artifact and compares it with the committed bytes, and the packet does not mention one.
+   - L.1's rebuild shows the artifacts reproduce, so the test will pass. It is the test that keeps them reproducible.
+3. **A label only** (`DEFERRED` 126).
+   - `p9_3_hz4x4.json`'s `old_cells.sha256` is the digest of `p9_3_old_cells.json`'s canonical JSON (`json.dumps(…,
+     sort_keys=True)`), not of the file (`4e40356c…`).
+   - The artifact does not name the construction. The module's docstring and the packet's Limitations do.
+
+No finding changes a number, a reading or a verdict, and the artifacts stay final at `97abd39`.
+
+## L.3 The authorisation for the fix round, to be quoted verbatim in the test
+> *"test_erfc_determinism 771 -> 779 AUTHORISED (BRIEF_48 Amendment L, L.3, 2026-11-09), same footing as BRIEF_29 section 1 B,
+> the 2026-09-10 authorisation, BRIEF_42 Amendment E.1, BRIEF_45 Amendment B.2 and BRIEF_46 Amendment T, T.3. The 8 are P9.3's
+> two-sided Wilcoxon blocks in docs/data/p9_3_hz4x4.json (committed at 97abd39), enumerated by the guard's own paths:
+> p9_3_hz4x4.json.leaders[*].leader_minus_runner_up[*].paired_comparison.wilcoxon, 8. None carries an alternative key, so
+> ONE_SIDED_PAIRS is unchanged; none has n_used = 0; all 779 reproduce under == through _expected_p_value (the coordinator's run
+> of the guard's own walk at b883e48). The docstring's first line moves with the literal (DEFERRED 125)."*
+
+**What changes, and nothing else:**
+- the literal 771 → 779;
+- a comment paragraph above it, with this quotation;
+- the assertion's message, which names the 8's source as the earlier entries do;
+- **the docstring's first line**, which becomes *"THE LOAD-BEARING TEST: 779 published p-values (322 -> 330 -> 339 -> 351 ->
+  487 -> 771 -> 779), none of which may move."*
+
+The walk, `ONE_SIDED_PAIRS`, `_expected_p_value` and the `moved == []` assertion stay untouched.
+
+## L.4 The T-regress, the fix round's second change
+- **One test for each artifact,** in `tests/test_hz4x4_report.py`. Each skips with a named reason unless the roots the two commands
+  read are set (`RLTRAFFIC_OUTPUT_ROOT`, and whatever P5.2c's pinned loader needs).
+- **It rebuilds** through the module's own commands or functions into `tmp_path`, from the run directories: `old-cells`, then
+  `report` on the rebuilt old cells.
+- **It compares** with the committed `docs/data/p9_3_old_cells.json` and `docs/data/p9_3_hz4x4.json`:
+  - every key under `==`;
+  - the git block's `commit` and `dirty` equal, and its `code_root`, which names the tree that ran, set aside;
+  - the report's `old_cells.sha256` recomputed from the committed old cells.
+- **Three mutants, each killed:**
+  - a value in one committed episode row changed, on a copy;
+  - one leaders reading changed;
+  - the git commit changed.
+- **No test-first order.** A T-regress pins committed bytes, so it cannot be red first. It must pass on the committed artifacts
+  and fail on each mutant. It writes nothing outside `tmp_path`.
+
+## L.5 Rulings
+1. **G5: one fix round, L.3 and L.4 only.** Nothing else changes, and the artifacts stay final at `97abd39`, with no rebuild.
+2. **The fix round, by P9.3 in its own session.** No token; CPU only; one pytest process at a time, one thread; read-only on
+   `output/` and the corpus; no `cd` into `output/`. In order:
+   1. `git merge --no-edit main`: this amendment and the plan, docs only.
+   2. L.3's change to `tests/test_erfc_determinism.py`, and nothing else in that file.
+   3. L.4's T-regress with its three mutants. Commit.
+   4. **The tests:**
+      - the whole suite at that commit, in CI's setting, expecting only the sandbox's three tmux refusals;
+      - the T-regress with the roots set;
+      - the seven P9.3 files;
+      - `check_test_hygiene.sh` on the changed tests.
+   5. **A packet section, docs only:**
+      - the commits;
+      - the guard's run;
+      - the kill table;
+      - the real tails;
+      - `git diff --stat` against `main`.
+   6. Report "P9.3 fix round done".
+3. **Then the coordinator verifies the fix and merges P9.3:**
+   - with `--no-ff`, and §6's P9.3 box ticked in the merge commit;
+   - the merge commit also carries the plan, `DEFERRED` 125 closed and 126 opened.
+4. **P9.3's flags:**
+   - the third suite run as the record: accepted;
+   - the end-to-end old-cells test written after the code: accepted, since mutant Kf backs it;
+   - the `dt_nomix`/`behaviour` equality on `fixedtime`: verified (L.1);
+   - CI's skips: measured on the merge's own run, after P9.1's 451 patch, which is with the author.
+5. **For the paper:**
+   - hz4x4 is A27(i)'s descriptive sentence and its descriptive leaders under both definitions, with no primary definition;
+   - `random_fresh` is definition-dependent;
+   - the `dt_nomix`/`behaviour` equality on `fixedtime` is stated as observed, without interpretation.
+
+   No registered statement concerns hz4x4.
+
+## L.6 Next
+- **P9.3:** the fix round (L.5-2).
+- **The author:** relay L.5-2 to P9.3, and apply P9.1's ceiling patch (`docs/patches/ci_gate_ceiling_451_p9_1_m2.patch`).
+- **The coordinator:** after "P9.3 fix round done", the verification and the merge; then P9.3's CI ceiling.
