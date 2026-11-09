@@ -17,7 +17,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -577,3 +580,120 @@ def test_the_old_cells_command_writes_all_25_from_the_pinned_artifacts(tmp_path:
     assert {entry["artifact_sha256"] for entry in written["cells"].values() if entry["source"] == "p9_1"} == {
         "d49088c369cefabf95d58286682ddfb876d61c9218f51ea902a85de28956adf8",
         "b49ebefd8886cdb2ca26b54ebb5097e4bf9a73711fece1a5ebcf4fbb07f8b103"}
+
+
+# ----------------------------------------------------------------------
+# T-regress (BRIEF_48 Amendment L, L.4): both committed artifacts, rebuilt from the run directories
+# ----------------------------------------------------------------------
+
+#: The commit both artifacts were built at (K.2-3; verified in L.1).  Their ``git`` block is
+#: ``compute_latency._git_provenance``'s -- the HEAD of the tree whose code runs -- so a rebuild reproduces its ``commit``
+#: and ``dirty`` only at this commit.  The T-regress therefore runs the module's own commands from a checkout of it, as
+#: L.1's rebuild from a scratch clone at it did.  A T-regress pins committed bytes, so it was never red first (L.4).
+BUILD_COMMIT = "d3d399cb1b6cf34a92e351397f504ba109d0604e"
+COMMITTED_OLD_CELLS = REPO / "docs" / "data" / "p9_3_old_cells.json"
+COMMITTED_REPORT = REPO / "docs" / "data" / "p9_3_hz4x4.json"
+#: What the two commands read under the output root: P5.2c's pinned loader (P5.1's and P5.2's evaluation files by their
+#: SHA256SUMS, and P8.4b's campaign) and P9.3's run directories.
+T_REGRESS_INPUTS = ("SHA256SUMS_p5_1.txt", "SHA256SUMS_p5_2.txt", "p8_4b_rederivation/CAMPAIGN_COMPLETE", "p9_3/eval",
+                    "p9_3/train", "p9_3/checkpoints")
+
+
+def _t_regress_output_root() -> Path:
+    """``RLTRAFFIC_OUTPUT_ROOT``, holding every input the two commands read -- or a skip that names what is missing."""
+    value = os.environ.get("RLTRAFFIC_OUTPUT_ROOT")
+    if not value:
+        pytest.skip("RLTRAFFIC_OUTPUT_ROOT is not set: the T-regress rebuilds p9_3_old_cells.json and p9_3_hz4x4.json "
+                    "from the main tree's output/ (P5.2c's pinned inputs, P8.4b's campaign and output/p9_3)")
+    output = Path(value)
+    missing = [name for name in T_REGRESS_INPUTS if not (output / name).exists()]
+    if missing:
+        pytest.skip(f"{output} lacks {', '.join(missing)}: set RLTRAFFIC_OUTPUT_ROOT to the main tree's output/")
+    return output
+
+
+def _checkout_build_commit(destination: Path) -> Path:
+    """``BUILD_COMMIT`` checked out at *destination* (``--shared``: the objects are read from this repository, and nothing
+    is written outside *destination*), or a skip when this clone's history lacks it."""
+    if shutil.which("git") is None:
+        pytest.skip("git is not installed: the T-regress rebuilds at the artifacts' build commit")
+    known = subprocess.run(["git", "-C", str(REPO), "cat-file", "-e", f"{BUILD_COMMIT}^{{commit}}"], capture_output=True)
+    if known.returncode != 0:
+        pytest.skip(f"commit {BUILD_COMMIT[:7]} is not in this clone's history (a shallow checkout): the T-regress "
+                    "rebuilds at the artifacts' build commit")
+    for command in (["git", "clone", "--quiet", "--shared", "--no-checkout", str(REPO), str(destination)],
+                    ["git", "-C", str(destination), "checkout", "--quiet", "--detach", BUILD_COMMIT]):
+        subprocess.run(command, check=True, capture_output=True)
+    return destination
+
+
+@pytest.fixture(scope="module")
+def t_regress_rebuild(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
+    """``old-cells``, then ``report`` on the rebuilt old cells: the module's own commands, run from the build commit's
+    checkout on the run directories, each writing into the test's temporary directory (no bytecode either)."""
+    output = _t_regress_output_root()
+    work = tmp_path_factory.mktemp("t_regress")
+    code = _checkout_build_commit(work / "code")
+    env = {**os.environ, "PYTHONPATH": str(code), "PYTHONDONTWRITEBYTECODE": "1"}
+    old_cells_out, report_out = work / "p9_3_old_cells.json", work / "p9_3_hz4x4.json"
+    for argv in (["old-cells", "--out", str(old_cells_out), "--output-root", str(output)],
+                 ["report", "--out", str(report_out), "--old-cells", str(old_cells_out), "--output-root", str(output)]):
+        done = subprocess.run([sys.executable, "-P", "-m", "offline.hz4x4_report", *argv], cwd=work, env=env,
+                              capture_output=True, text=True)
+        assert done.returncode == 0, f"{argv[0]} exited {done.returncode}: {done.stderr[-2000:]}"
+    return {"code": code, "old_cells": json.loads(old_cells_out.read_bytes()),
+            "report": json.loads(report_out.read_bytes())}
+
+
+def _differences(rebuilt: Any, committed: Any, path: str = "") -> list[str]:
+    """Where two parsed artifacts differ, key by key -- the assertion's message; the assertion itself is ``==``."""
+    if isinstance(rebuilt, dict) and isinstance(committed, dict):
+        out = [f"{path}.{key}: in one only" for key in sorted(set(rebuilt) ^ set(committed))]
+        for key in sorted(set(rebuilt) & set(committed)):
+            out += _differences(rebuilt[key], committed[key], f"{path}.{key}")
+        return out
+    if isinstance(rebuilt, list) and isinstance(committed, list) and len(rebuilt) == len(committed):
+        return [d for i, (a, b) in enumerate(zip(rebuilt, committed)) for d in _differences(a, b, f"{path}[{i}]")]
+    return [] if rebuilt == committed else [path or "."]
+
+
+def _old_cells_digest(artifact: dict[str, Any]) -> str:
+    """The construction ``report_artifact`` names the old cells by: the sha256 of their canonical JSON."""
+    return hashlib.sha256(json.dumps(artifact, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _assert_rebuilt_is_committed(rebuilt: dict[str, Any], committed: dict[str, Any], code: Path) -> None:
+    """Every key under ``==``; the ``git`` block's ``commit`` and ``dirty`` equal, and its ``code_root`` -- the tree that
+    ran, which must be the build commit's checkout -- set aside (L.4)."""
+    assert Path(rebuilt["git"]["code_root"]).resolve() == code.resolve()
+    assert [rebuilt["git"][key] for key in ("commit", "dirty")] == [committed["git"][key] for key in ("commit", "dirty")]
+    ours = {**rebuilt, "git": {k: v for k, v in rebuilt["git"].items() if k != "code_root"}}
+    theirs = {**committed, "git": {k: v for k, v in committed["git"].items() if k != "code_root"}}
+    # Each comparison is evaluated into a bool before it is asserted: pytest's own explanation of a failed ``==`` between
+    # two multi-megabyte artifacts diffs their whole representations and runs for minutes, so the message is ours.
+    same = ours == theirs
+    assert same, _differences(ours, theirs)[:10]
+    same_text = json.dumps(ours, sort_keys=True) == json.dumps(theirs, sort_keys=True)
+    assert same_text, "the canonical JSON differs where == does not: a type or a sign (1 against 1.0, 0.0 against -0.0)"
+
+
+def test_t_regress_the_old_cells_artifact_rebuilds_from_the_run_directories(t_regress_rebuild: dict[str, Any]) -> None:
+    """L.4: ``docs/data/p9_3_old_cells.json``, rebuilt by ``old-cells`` at its build commit from the run directories,
+    equals the committed artifact in every key."""
+    committed = json.loads(COMMITTED_OLD_CELLS.read_bytes())
+    _assert_rebuilt_is_committed(t_regress_rebuild["old_cells"], committed, t_regress_rebuild["code"])
+
+
+def test_t_regress_the_report_artifact_rebuilds_from_the_run_directories(t_regress_rebuild: dict[str, Any]) -> None:
+    """L.4: ``docs/data/p9_3_hz4x4.json``, rebuilt by ``report`` on the rebuilt old cells, equals the committed artifact
+    in every key.  Its ``old_cells.sha256`` is recomputed from the committed old cells; the rebuilt report's names the
+    rebuilt old cells, whose ``code_root`` is the checkout's, and is recomputed from them."""
+    committed = json.loads(COMMITTED_REPORT.read_bytes())
+    rebuilt = t_regress_rebuild["report"]
+    assert committed["old_cells"]["sha256"] == _old_cells_digest(json.loads(COMMITTED_OLD_CELLS.read_bytes()))
+    assert rebuilt["old_cells"]["sha256"] == _old_cells_digest(t_regress_rebuild["old_cells"])
+
+    def without_digest(artifact: dict[str, Any]) -> dict[str, Any]:
+        return {**artifact, "old_cells": {k: v for k, v in artifact["old_cells"].items() if k != "sha256"}}
+
+    _assert_rebuilt_is_committed(without_digest(rebuilt), without_digest(committed), t_regress_rebuild["code"])
