@@ -1,0 +1,26 @@
+TARGET = "offline/p9_4_evaluation.py"
+TESTS = ["tests/test_p9_4_evaluation_review.py", "tests/test_p9_4_evaluation.py", "tests/test_p9_4_hooks.py"]
+MUTANTS = [
+    ("B-M4 G1 drops att_env", 'G1_FIELDS: tuple[str, ...] = ("e_sumo", "att_env")', 'G1_FIELDS: tuple[str, ...] = ("e_sumo",)'),
+    ("B-M1 route (ii) factory at the calibrated target",
+     'factory = grid.cell_factory("dt", identity["path"], int(steps), float(p94.SOURCE_TARGET), device)',
+     'factory = grid.cell_factory("dt", identity["path"], int(steps), float(p94.CALIBRATED_TARGET), device)'),
+    ("B-M16 route (i) rolled at the calibrated target",
+     'produced = evaluate_route_i(roots, spec, checkpoints, target_rtg=target, draws=draws, steps=steps)',
+     'produced = evaluate_route_i(roots, spec, checkpoints, target_rtg=p94.CALIBRATED_TARGET, draws=draws, steps=steps)'),
+    ("B-M2 route (i) at engine seed 1001", '                    engine_seed=p94.ENGINE_SEED,\n',
+     '                    engine_seed=p94.ENGINE_SEED + 1,\n'),
+    ("F2a route (ii) starts beside a refusal", '    if already:\n        raise RuntimeError(f"route (ii) has {already}',
+     '    if False:\n        raise RuntimeError(f"route (ii) has {already}'),
+    ("F2b siblings ignore a refusal", ' or refusals_on_disk(work) > 0,\n', ',\n'),
+    ("F2c a sibling's refusal not raised", '    if outcome["n_refused"] or on_disk:', '    if outcome["n_refused"]:'),
+    ("F2d cityflow complete beside a refusal", ' and int(route_ii["refused"]) == 0}', '}'),
+    ("E5a the record is not re-derived",
+     '    if g1_comparison(roots, g1_cells()) != record.get("g1") or g2_comparison(roots, g2_cells()) != record.get("g2"):',
+     '    if False:'),
+    ("E5b G2 not re-derived", ' or g2_comparison(roots, g2_cells()) != record.get("g2"):', ':'),
+    ("E5c guard chunks not re-validated", '    if problems:\n        raise ValueError(f"{path}: {len(problems)} guard chunk(s)',
+     '    if False:\n        raise ValueError(f"{path}: {len(problems)} guard chunk(s)'),
+    ("E5d a fresh record not checked", '    assert_guards_authorise(roots, record)\n    return {"record": record, "rolled": outcome["rolled"]}',
+     '    return {"record": record, "rolled": outcome["rolled"]}'),
+]

@@ -1,0 +1,83 @@
+== mut_report.txt
+C-M19 S13 above says faster: KILLED | 1 failed, 3 passed in 0.86s
+C-M15 contains gains the counts: KILLED | 1 failed, 18 passed in 0.85s
+C-M16 S1 above drops the Wilcoxon: KILLED | 1 failed, 1 passed in 0.93s
+C-M7 S10 fed the source arm: KILLED | 1 failed, 71 passed in 3.02s
+C-M17 tuned-k reading from the registered pair: KILLED | 1 failed, 67 passed in 1.22s
+C-M18 per-seed means ignore the seed: KILLED | 1 failed, 72 passed in 3.05s
+C-M5b r7 source from the calibrated rows: KILLED | 1 failed, 72 passed in 3.45s
+C-M20 rho < 1 read from the low end: KILLED | 1 failed, 66 passed in 1.01s
+C-L1 an undeclared chunk admitted: KILLED | 1 failed, 74 passed in 10.12s
+C-L2 a non-reusable chunk admitted: KILLED | 1 failed, 75 passed in 11.23s
+C-L3 a route (ii) refusal admitted: KILLED | 1 failed, 77 passed in 18.74s
+C-L4 an untrained run admitted: KILLED | 1 failed, 78 passed in 23.36s
+N1 a missing chunk not named: KILLED | 1 failed, 76 passed in 15.86s
+N2 a non-finite value admitted: KILLED | 1 failed, 79 passed in 24.60s
+N3 a duplicate cell admitted: KILLED | 1 failed, 81 passed in 23.01s
+N4 the new rows' design unchecked: KILLED | 1 failed, 79 passed in 22.45s
+N5 distinct values may print equal: KILLED | 1 failed, 47 passed in 0.96s
+N6 a printed value may cross its reference: KILLED | 1 failed, 47 passed in 0.89s
+N7 the six-decimal cap back: KILLED | 1 failed, 47 passed in 1.05s
+N8 p crosses 0.05 when printed: KILLED | 1 failed, 54 passed in 1.10s
+N9 p below 0.001 rounds to it: KILLED | 1 failed, 58 passed in 0.89s
+N10 a non-probability printed: KILLED | 1 failed, 61 passed in 0.90s
+N11 S11 count at one fixed decimal: KILLED | 1 failed, 45 passed in 0.95s
+N12 all_agree from att_env: KILLED | 1 failed, 68 passed in 1.51s
+N13 registered rho flags from the aligned entry: KILLED | 1 failed, 67 passed in 0.98s
+N14 a failed write leaves its temporary: KILLED | 1 failed, 83 passed in 25.60s
+== mut_eval.txt
+B-M4 G1 drops att_env: KILLED | 1 failed, 5 passed in 2.41s
+B-M1 route (ii) factory at the calibrated target: KILLED | 1 failed, 4 passed in 0.99s
+B-M16 route (i) rolled at the calibrated target: KILLED | 1 failed, 3 passed in 1.29s
+B-M2 route (i) at engine seed 1001: KILLED | 1 failed, 3 passed in 0.97s
+F2a route (ii) starts beside a refusal: KILLED | 1 failed in 1.11s
+F2b siblings ignore a refusal: KILLED | 1 failed, 1 passed in 1.10s
+F2c a sibling's refusal not raised: KILLED | 1 failed, 1 passed in 1.12s
+F2d cityflow complete beside a refusal: KILLED | 1 failed, 2 passed in 0.99s
+E5a the record is not re-derived: KILLED | 1 failed, 7 passed in 4.21s
+E5b G2 not re-derived: KILLED | 1 failed, 8 passed in 6.18s
+E5c guard chunks not re-validated: KILLED | 1 failed, 9 passed in 7.27s
+E5d a fresh record not checked: KILLED | 1 failed, 10 passed in 8.07s
+B-M13 grid4x4's subject admitted: SURVIVED | 50 passed in 8.80s
+H1 P7.3c's arm subjects admitted: KILLED | 1 failed, 12 passed in 8.88s
+H2 any stage admitted: KILLED | 1 failed, 14 passed in 8.89s
+H3 P7.3a's and P7.3b's stages admitted: KILLED | 1 failed, 16 passed in 8.58s
+H4 no stage admitted: KILLED | 1 failed, 14 passed in 8.19s
+B-M13' grid4x4's subject admitted by both routes: KILLED | 1 failed, 11 passed in 8.21s
+B-M13 (single): EQUIVALENT after the fix -- mappo1000_dt_nomix_h4 is also a P7.3c arm's subject
+== mut_main.txt
+F1 no measured hours bound: KILLED | 1 failed in 0.98s
+A-T rtg_scale from the IQL scale: KILLED | 1 failed, 2 passed in 1.03s
+A-T the next seed: KILLED | 1 failed, 2 passed in 1.02s
+A-T the top decile: KILLED | 1 failed, 2 passed in 0.96s
+A-M19 no statistics digest: KILLED | 1 failed, 4 passed in 1.00s
+A-2.2 maximum in any half: KILLED | 1 failed, 5 passed in 1.01s
+A-2.2 not the highest: KILLED | 1 failed, 5 passed in 0.99s
+A-v absent digests equal: KILLED | 1 failed, 6 passed in 1.04s
+A-v any file digest: KILLED | 1 failed, 6 passed in 0.98s
+A zero parameters count: KILLED | 1 failed, 7 passed in 1.06s
+A plan-only forgets a failed control: KILLED | 1 failed, 1 passed in 1.07s
+A any step budget: KILLED | 1 failed, 8 passed in 1.08s
+N10 record not re-derived: KILLED | 1 failed, 8 passed in 1.19s
+N10 candidate not re-hashed: KILLED | 1 failed, 8 passed in 1.15s
+N10 any seeds: KILLED | 1 failed, 8 passed in 1.08s
+F4 a symlinked leaf admitted: KILLED | 1 failed, 9 passed in 1.11s
+F4 the leaves resolved: KILLED | 1 failed, 9 passed in 1.07s
+N2 the temporary left on failure: KILLED | 1 failed, 8 passed in 1.07s
+N3 the stall dump unbarriered: KILLED | 1 failed, 12 passed in 1.12s
+N11 an ancestor smoke root: KILLED | 1 failed, 13 passed in 1.10s
+B11 route-i ungated: KILLED | 1 failed, 17 passed in 1.13s
+B11 sumo ungated: KILLED | 1 failed, 20 passed in 1.11s
+F2 check cityflow beside a refusal: KILLED | 1 failed, 21 passed in 1.11s
+N1s a symlink copied through: KILLED | 1 failed, 16 passed in 1.09s
+N1s a directory outside: KILLED | 1 failed, 16 passed in 1.02s
+== mut_driver.txt
+D-B1 an unreadable state read as clean: KILLED | 1 failed, 8 passed in 0.10s
+D-N9 ignored files invisible: KILLED | 1 failed, 10 passed in 0.18s
+D-N8 any commit name: KILLED | 1 failed, 3 passed in 0.08s
+D-N7 a missing argument: KILLED | 1 failed in 0.06s
+D-N5 noclobber off: KILLED | 1 failed, 12 passed in 0.19s
+D-N9 bytecode written into the run tree: KILLED | 1 failed, 12 passed in 0.18s
+D the module check fails open: KILLED | 1 failed, 9 passed in 0.14s
+D on a branch admitted: KILLED | 1 failed, 11 passed in 0.20s
+D another commit admitted: KILLED | 1 failed, 11 passed in 0.18s
