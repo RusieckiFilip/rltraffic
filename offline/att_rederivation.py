@@ -1176,6 +1176,7 @@ def run_campaign(
     protected: Sequence[Path],
     factory_builder: Callable[..., tuple[Any, dict[str, Any]]] | None = None,
     should_stop: Callable[[], bool] | None = None,
+    env_settings_builder: Callable[[str, str, Any], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Roll every cell, checking reproduction PER CELL, writing one file each.
 
@@ -1203,6 +1204,11 @@ def run_campaign(
     default -- rolls every cell and returns exactly the keys above.  Given, it is asked before every cell, never inside
     one; a ``True`` ends the campaign there, and the result adds ``stopped`` and ``not_reached`` (the cells from that
     one on).  The next call resumes from disk, as after any interruption.
+
+    *env_settings_builder* (P9.4, ``docs/plans/p9.4_mix50_fresh.md``; added): ``None`` -- the default -- is
+    :func:`rederivation_env_settings`, every registered call unchanged.  Given, it is called with the same
+    ``(scenario, tier, roots)`` for a tier the registered declarations do not name, and returns that tier's evaluation
+    env settings; P9.4 passes the registered rule (``method_tier_grid.env_settings_for_tiers``) over its own tier.
     """
     from offline.admission_probe import created_from_flow, probe_episode
     from offline.materialise_draws import draw_config_path
@@ -1236,7 +1242,8 @@ def run_campaign(
             method, tier = normalise_arm(cell.scenario, cell.arm)
             tier_key = (cell.scenario, tier)
             if tier_key not in settings_cache:
-                settings_cache[tier_key] = rederivation_env_settings(cell.scenario, tier, roots)
+                resolve = rederivation_env_settings if env_settings_builder is None else env_settings_builder
+                settings_cache[tier_key] = resolve(cell.scenario, tier, roots)
             settings = settings_cache[tier_key]
             horizon = int(settings["max_steps"]) * int(settings["delta_time"])
 

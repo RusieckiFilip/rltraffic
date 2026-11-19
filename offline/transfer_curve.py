@@ -2781,6 +2781,65 @@ def reusable_chunk_at(path: str | Path, **kwargs: Any) -> bool:
     return chunk_is_reusable(payload, **kwargs)
 
 
+#: The keys an UNREGISTERED subject's caller supplies to :func:`run_cell` (P9.4's hook, see its docstring), and the one
+#: optional key: the budget the checkpoint was trained at, which the loader refuses to differ from (default 40,000).
+SUBJECT_INPUT_KEYS: frozenset[str] = frozenset({"target_rtg", "facts", "checkpoint"})
+SUBJECT_INPUT_OPTIONAL_KEYS: frozenset[str] = frozenset({"declared_gradient_steps"})
+#: The keys a supplied checkpoint identity carries -- :func:`checkpoint_identity`'s, which the chunk records.
+SUBJECT_CHECKPOINT_KEYS: frozenset[str] = frozenset({"subject", "seed", "path", "file_sha256", "sha256_checked_against"})
+
+
+def _assert_subject_inputs_admissible(cell: Mapping[str, Any], subject_inputs: Mapping[str, Any]) -> None:
+    """P9.4's hook (``docs/plans/p9.4_mix50_fresh.md``): refuse *subject_inputs* wherever they do not belong.
+
+    Supplied inputs are admitted only for an hz1x1 DT cell of a subject NO registered table names, outside P7.3c's
+    stages, and only well-formed: exactly :data:`SUBJECT_INPUT_KEYS`, a finite target, facts and a checkpoint identity
+    of the cell's own subject and seed.  A registered subject's prompt, support range and checkpoint pin are READ from
+    their registrations (A17, G1) and are never supplied by a caller.  Runs before any input is resolved.
+    """
+    import math
+
+    from offline.transfer_calibration import SUBJECTS as SUBJECT_LAYOUT
+
+    subject = cell.get("subject")
+    registered = {*SUBJECTS, *SUBJECT_LAYOUT, ANCHOR_SUBJECT, GRID4X4_SUBJECT}
+    if str(cell.get("kind")) != "dt":
+        raise ValueError(f"{cell_chunk_name(cell)}: only a DT cell takes subject inputs; this one is {cell.get('kind')!r}")
+    if subject is None or str(subject) in registered:
+        raise ValueError(
+            f"{cell_chunk_name(cell)}: {subject!r} is a registered subject (or none); its prompt, support range and "
+            "checkpoint pin are read from its registrations and never supplied by a caller"
+        )
+    if scenario_of(cell) != SCENARIO_KEY:
+        raise ValueError(f"{cell_chunk_name(cell)}: subject inputs are supplied on hz1x1 only, not {scenario_of(cell)!r}")
+    if str(cell.get("stage")) in P7_3C_STAGES:
+        raise ValueError(f"{cell_chunk_name(cell)}: subject inputs are not a P7.3c cell's; P7.3c admits by its predicate")
+    if not SUBJECT_INPUT_KEYS <= set(subject_inputs) <= SUBJECT_INPUT_KEYS | SUBJECT_INPUT_OPTIONAL_KEYS:
+        raise ValueError(
+            f"subject inputs carry exactly {sorted(SUBJECT_INPUT_KEYS)} and optionally "
+            f"{sorted(SUBJECT_INPUT_OPTIONAL_KEYS)}, not {sorted(subject_inputs)}"
+        )
+    steps = subject_inputs.get("declared_gradient_steps")
+    if steps is not None and (isinstance(steps, bool) or not isinstance(steps, int) or steps < 1):
+        raise ValueError(f"the supplied declared_gradient_steps {steps!r} is not a positive whole number")
+    target = subject_inputs["target_rtg"]
+    if isinstance(target, bool) or not isinstance(target, (int, float)) or not math.isfinite(float(target)):
+        raise ValueError(f"the supplied target_rtg {target!r} is not a finite number")
+    if getattr(subject_inputs["facts"], "subject", None) != str(subject):
+        raise ValueError(f"the supplied facts are {getattr(subject_inputs['facts'], 'subject', None)!r}'s, not {subject!r}'s")
+    checkpoint = subject_inputs["checkpoint"]
+    if (
+        not isinstance(checkpoint, Mapping)
+        or not SUBJECT_CHECKPOINT_KEYS <= set(checkpoint)
+        or str(checkpoint["subject"]) != str(subject)
+        or int(checkpoint["seed"]) != int(cell["seed"])
+    ):
+        raise ValueError(
+            f"the supplied checkpoint identity must carry {sorted(SUBJECT_CHECKPOINT_KEYS)} for {subject!r} seed "
+            f"{cell.get('seed')!r}"
+        )
+
+
 def run_cell(
     cell: Mapping[str, Any],
     *,
@@ -2789,6 +2848,7 @@ def run_cell(
     data_dir: str | Path | None = None,
     calibration: Mapping[str, Any] | None = None,
     canary_seconds: float | None = None,
+    subject_inputs: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """One observed SUMO episode for one cell, as a validated chunk.  It writes NOTHING.
 
@@ -2807,6 +2867,17 @@ def run_cell(
     ``dt_choose``'s per-intersection branch (``spatial_agent_with_targets``), and returns a
     ``p7.3d-grid4x4/1.1`` chunk (the module docstring's last section), whose 16-id refusal runs in
     :func:`validate_cell_payload` on the finished payload before it is returned.
+
+    **``subject_inputs`` (P9.4, ``docs/plans/p9.4_mix50_fresh.md``; added, never changing a default).**  ``None`` --
+    the default -- is every registered call, unchanged.  Given, it is an UNREGISTERED hz1x1 subject's ``target_rtg``,
+    ``facts`` (a :class:`~offline.transfer_calibration.SubjectFacts`) and checkpoint identity (the shape
+    :func:`checkpoint_identity` returns, the file hashed and checked against the subject's own record by the caller,
+    at consumption), used where a registered subject's are read from P7.2b's artifact, its five checkpoints and
+    :data:`CHECKPOINT_RECORD`.  :func:`_assert_subject_inputs_admissible` refuses them before any input is resolved
+    unless the cell is an hz1x1 DT cell of a subject no registered table names; everything after the subject's inputs
+    -- the env, the door, the rollout, the payload and :func:`validate_cell_payload` -- is the code every cell runs.
+    One optional key, ``declared_gradient_steps``, is the budget the checkpoint was trained at and is handed to
+    :func:`dt_choose` exactly as a P7.3c trained subject's is; absent, the loader's 40,000 applies.
     """
     import time
 
@@ -2821,6 +2892,9 @@ def run_cell(
     draw_id = int(cell["draw_id"])
     arm = str(cell["arm"])
     grid = scenario_of(cell) == GRID4X4_SCENARIO_KEY
+    # P9.4: supplied subject inputs are refused, before any input is resolved, wherever they do not belong.
+    if subject_inputs is not None:
+        _assert_subject_inputs_admissible(cell, subject_inputs)
     # BRIEF_41 C5: a P7.3c cell is admitted by THE predicate before any input is resolved -- an anchor
     # in stage 2 or a pair outside its stage's table never reaches a demand, a checkpoint or a simulator.
     p7_3c = str(cell.get("stage")) in P7_3C_STAGES
@@ -2850,6 +2924,13 @@ def run_cell(
         target_rtg = grid4x4_targets_for_cell(cell, data_dir=data_dir)
         grid_support = grid4x4_support_ranges(data_dir=data_dir)
         checkpoint = checkpoint_identity_for(cell, output_root=output_root, data_dir=data_dir)
+    elif kind == "dt" and subject_inputs is not None:
+        # P9.4: an UNREGISTERED subject's inputs, supplied by its caller and admitted above. P7.2b's artifact,
+        # subject_facts and CHECKPOINT_RECORD know the registered subjects only, and are not reached on this branch.
+        target_rtg = float(subject_inputs["target_rtg"])
+        facts = subject_inputs["facts"]
+        checkpoint = dict(subject_inputs["checkpoint"])
+        declared_steps = subject_inputs.get("declared_gradient_steps")
     elif kind == "dt":
         subject = str(cell["subject"])
         if subject == ANCHOR_SUBJECT:
@@ -4243,10 +4324,15 @@ def _h3_block(by_arm: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _contrast_block(by_arm: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """A17(d)'s calibrated-vs-naive contrast: EXPLORATORY, with its registered direction beside it."""
+def _contrast_block(
+    by_arm: Sequence[Mapping[str, Any]], subjects: Sequence[str] = SUBJECTS
+) -> dict[str, Any]:
+    """A17(d)'s calibrated-vs-naive contrast: EXPLORATORY, with its registered direction beside it.
+
+    *subjects* (P9.4, added): the subjects reported; the default is A17(c)'s two, every registered call unchanged.
+    """
     by_subject: dict[str, Any] = {}
-    for subject in SUBJECTS:
+    for subject in subjects:
         calibrated = [e for e in by_arm if e["subject"] == subject and e["arm"] == "b_mean_k100"]
         naive = [e for e in by_arm if e["subject"] == subject and e["arm"] == "naive"]
         if not calibrated or not naive:
@@ -4281,7 +4367,9 @@ def _contrast_block(by_arm: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 
 
 def _in_support_block(
-    rows: Sequence[Mapping[str, Any]], calibration: Mapping[str, Any]
+    rows: Sequence[Mapping[str, Any]],
+    calibration: Mapping[str, Any],
+    subjects: Sequence[str] = SUBJECTS,
 ) -> dict[str, Any]:
     """The in-support diagnostic, declared and observed side by side.  Nothing selects on it.
 
@@ -4289,9 +4377,12 @@ def _in_support_block(
     ``mappo1000`` (below its training-return range, margin -10818) and inside it for ``mix50``.
     This block reports the artifact's own field so that fact is read from the registration rather
     than discovered afterwards and offered as an explanation of a result.
+
+    *subjects* (P9.4, added): the subjects whose declared targets are read from *calibration*; the default is A17(c)'s
+    two, every registered call unchanged.
     """
     declared: dict[str, Any] = {}
-    for subject in SUBJECTS:
+    for subject in subjects:
         targets = targets_for_subject(subject, calibration)
         declared[subject] = {name: row["in_support"] for name, row in targets.items()}
 
