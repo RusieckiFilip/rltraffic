@@ -1,15 +1,16 @@
 """P9.4's driver after the 2026-11-19 pre-flight review (review D; ``docs/returns/P9.4.md``): every run-tree check FAILS
 CLOSED -- a tree whose git state cannot be read is refused, never read as clean (D's blocking finding) -- an ignored
 file is refused like an untracked one, the commit is the full sha the report later reads, a missing argument exits 2,
-and nothing is overwritten by a redirection.  The behavioural checks run copies of the driver in scratch trees; none
-gets past the module checks, so nothing is run.
+and nothing is overwritten by a redirection.  The behavioural checks run copies of the driver in scratch trees, each
+copy's ``MAIN`` pointed at a scratch main tree whose interpreter is the one running these tests (the git checks come
+after the interpreter check, and a runner has no main tree); none gets past the module check, so nothing is run.
 """
 
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -24,9 +25,16 @@ def _run(script: Path, *argv: str, cwd: Path) -> subprocess.CompletedProcess[str
 
 
 def _copy_driver(root: Path) -> Path:
+    """The driver copied into *root*'s ``offline/campaigns/``, its ``MAIN`` a scratch main tree beside *root* whose
+    ``.venv/bin/python`` is this interpreter."""
+    main = root.parent / f"{root.name}_main"
+    (main / ".venv" / "bin").mkdir(parents=True)
+    (main / ".venv" / "bin" / "python").symlink_to(sys.executable)
     script = root / "offline" / "campaigns" / DRIVER.name
     script.parent.mkdir(parents=True)
-    shutil.copyfile(DRIVER, script)
+    text = DRIVER.read_text(encoding="utf-8")
+    assert text.count("\nMAIN=/home/filip/rltraffic\n") == 1
+    script.write_text(text.replace("\nMAIN=/home/filip/rltraffic\n", f"\nMAIN={main}\n"), encoding="utf-8")
     return script
 
 
@@ -71,7 +79,9 @@ def detached_tree(tmp_path: Path) -> tuple[Path, str]:
 def test_a_clean_detached_tree_at_its_commit_passes_every_git_check(detached_tree: tuple[Path, str]) -> None:
     script, head = detached_tree
     result = _run(script, "train", head, cwd=script.parents[2])
-    assert result.returncode == 2 and "does not import" in result.stderr  # stopped after them, at the module check
+    # Stopped after them, at the module check: the scratch tree holds no module ("does not import"), or, where the
+    # repository is installed in editable mode (a CI runner), the module resolves elsewhere ("loads from").
+    assert result.returncode == 2 and ("does not import" in result.stderr or "loads from" in result.stderr)
     for message in ("git cannot", "ignored files", "is not at", "on a branch"):
         assert message not in result.stderr
 
