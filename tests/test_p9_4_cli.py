@@ -76,9 +76,15 @@ def test_cityflow_and_sumo_refuse_before_the_controls_five_of_five(tmp_path: Pat
 def test_cityflow_and_sumo_refuse_until_the_new_tiers_five_runs_are_done(tmp_path: Path, quiet_checks: list[str],
                                                                          stage: str) -> None:
     roots = _roots(tmp_path)
+    # Since review D (2026-11-19) a passed record must re-derive from the five control checkpoints it compared.
+    for run in p94.control_runs():
+        _trained(roots, run)
+    seeds = [{"seed": run.seed, "candidate": str(p94.checkpoint_path(roots, run)),
+              "candidate_file_sha256": p94.file_sha256(p94.checkpoint_path(roots, run)), "all_equal": True,
+              "keys_equal": True, "n_parameters": 1} for run in p94.control_runs()]
     p94.write_once(p94.control_record_path(roots), {"format_version": p94.CONTROL_FORMAT_VERSION,
                                                     "declared_gradient_steps": 40000, "passed": True,
-                                                    "n_seeds_equal": 5, "seeds": [], "library_versions": {}}, roots)
+                                                    "n_seeds_equal": 5, "seeds": seeds, "library_versions": {}}, roots)
     for run in p94.new_runs()[:4]:
         _trained(roots, run)
     with pytest.raises(ValueError, match="mix50_fresh_dt_seed505 is not trained"):

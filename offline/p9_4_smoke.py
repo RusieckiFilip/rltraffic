@@ -33,14 +33,21 @@ GUARD_DRAW = 1000
 
 def copy_references(roots: p94.Roots, *, source_output: Path = p94.DEFAULT_OUTPUT_ROOT) -> list[str]:
     """Copy P4.7's five mix50 checkpoints and its local manifest into the scratch root's ``output/`` (read-only use of
-    the real one); refuse a scratch output that is the real one."""
+    the real one); refuse a scratch output that is the real one, a directory that resolves outside it and a symlink at
+    a copy's name (review D, 2026-11-19: a dangling symlink would have been written through)."""
     if Path(roots.output_root).resolve() == Path(source_output).resolve():
         raise ValueError("the smoke's output root is the main tree's; the smoke writes only into its scratch root")
     copied = []
     names = [f"p4_7/checkpoints/mix50_dt_seed{seed}.pt" for seed in p94.SEEDS] + ["SHA256SUMS_p4_7.txt"]
+    scratch_output = Path(roots.output_root).resolve()
     for name in names:
         target = Path(roots.output_root) / name
         target.parent.mkdir(parents=True, exist_ok=True)
+        parent = target.parent.resolve()
+        if parent != scratch_output and scratch_output not in parent.parents:
+            raise ValueError(f"{target.parent} resolves to {parent}, outside the smoke's output root {scratch_output}")
+        if target.is_symlink():
+            raise ValueError(f"{target} is a symlink; the smoke copies only into real files of its scratch root")
         if not target.exists():
             shutil.copyfile(Path(source_output) / name, target)
         copied.append(name)

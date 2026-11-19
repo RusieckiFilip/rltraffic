@@ -48,7 +48,7 @@ import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 __all__ = [
     "LABEL",
@@ -168,10 +168,19 @@ class Roots:
 def assert_target(path: str | Path, roots: Roots) -> Path:
     """Refuse any write that does not resolve under ``output/p9_4/`` or ``output/p9_4_runs/``; return the resolved path.
 
-    Resolution comes first, so ``..``, a relative path or a symlink is judged by where it LANDS.
+    Resolution comes first, so ``..``, a relative path or a symlink is judged by where it LANDS.  The two task
+    directories themselves are NEVER resolved: either one that is a symlink is refused (review D, 2026-11-19: with
+    ``output/p9_4 -> output/p7_3a`` a write landed in P7.3a's directory).
     """
+    output = Path(roots.output_root).resolve()
+    allowed = []
+    for name in (RUN_DIR, RUNS_DIR):
+        leaf = output / name
+        if leaf.is_symlink():
+            raise PermissionError(f"{leaf} is a symlink; P9.4 writes only into real directories output/{RUN_DIR}/ and "
+                                  f"output/{RUNS_DIR}/ (plan section 7)")
+        allowed.append(leaf)
     resolved = Path(path).resolve()
-    allowed = (Path(roots.run_root).resolve(), Path(roots.runs_root).resolve())
     if not any(resolved == root or root in resolved.parents for root in allowed):
         raise PermissionError(
             f"{path} resolves to {resolved}, outside output/{RUN_DIR}/ and output/{RUNS_DIR}/; P9.4 writes nowhere else "
@@ -186,21 +195,27 @@ def canonical_text(payload: Mapping[str, Any]) -> str:
 
 
 def write_once(path: str | Path, payload: Mapping[str, Any], roots: Roots) -> Path:
-    """Create *path* exclusively and atomically: the bytes go to a temporary file in the same directory, which is then
-    hard-linked to *path* -- ``os.link`` fails if *path* exists, so nothing is ever overwritten -- and unlinked.  A crash
-    leaves at most the temporary file, never a half-written record under the real name."""
+    """Create *path* exclusively and atomically: the payload is serialised first (a value JSON refuses raises before any
+    file exists), the bytes go to a temporary file in the same directory, which is then hard-linked to *path* --
+    ``os.link`` fails if *path* exists, so nothing is ever overwritten -- and unlinked, also when anything fails (review
+    D, 2026-11-19: a failed write left its temporary behind).  A crash leaves at most the temporary file, never a
+    half-written record under the real name."""
     target = assert_target(path, roots)
+    text = canonical_text(payload)
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.parent / f".{target.name}.{os.getpid()}.tmp"
     assert_target(temporary, roots)
-    with open(temporary, "x", encoding="utf-8") as handle:
-        handle.write(canonical_text(payload))
-        handle.flush()
-        os.fsync(handle.fileno())
+    created = False
     try:
+        with open(temporary, "x", encoding="utf-8") as handle:
+            created = True
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
         os.link(temporary, target)
     finally:
-        temporary.unlink()
+        if created and temporary.exists():
+            temporary.unlink()
     return target
 
 
@@ -336,11 +351,18 @@ def check_iv(sequence_digests: Mapping[str, Sequence[str]]) -> dict[str, Any]:
     return {"per_intersection_distinct": counts, "per_intersection_streams": sizes, "passed": passed}
 
 
+def is_sha256(value: Any) -> bool:
+    """A sha256 hex digest as hashlib writes it: 64 lower-case hexadecimal characters."""
+    return isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
+
+
 def check_v(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """(v), as Amendment A1 states it: each stream's ``episode_sha256`` equals the trajectory digest recomputed from its
-    file, and each file's sha256 is recorded beside it."""
-    equal = [row for row in rows if str(row.get("episode_sha256")) == str(row.get("trajectory_digest"))]
-    recorded = [row for row in rows if isinstance(row.get("file_sha256"), str) and len(row["file_sha256"]) == 64]
+    file, and each file's sha256 is recorded beside it -- every one of the three a sha256 hex digest (review A,
+    2026-11-19: two absent digests compared equal as ``"None"``)."""
+    equal = [row for row in rows if is_sha256(row.get("episode_sha256"))
+             and row.get("episode_sha256") == row.get("trajectory_digest")]
+    recorded = [row for row in rows if is_sha256(row.get("file_sha256"))]
     mismatched = [row.get("episode_file") for row in rows if row not in equal]
     passed = bool(rows) and len(equal) == len(rows) and len(recorded) == len(rows)
     return {"n": len(rows), "n_equal": len(equal), "n_file_sha256_recorded": len(recorded),
@@ -497,6 +519,19 @@ def guard_subsets() -> dict[str, Any]:
     }
 
 
+def source_target_check(rows: Sequence[Mapping[str, Any]], target: float) -> dict[str, Any]:
+    """Plan 2.2: *target* is the training set's highest return, it is the source target, and it lies in the unchanged
+    expert half only; refused otherwise (the task stops before anything is written)."""
+    highest = max(float(row["total_return"]) for row in rows)
+    at_maximum = sorted({str(row["half"]) for row in rows if float(row["total_return"]) == float(target)})
+    if float(target) != highest or float(target) != SOURCE_TARGET or at_maximum != ["expert"]:
+        raise ValueError(
+            f"plan 2.2: the training set's highest return is {highest} (the target given is {target}, found in the "
+            f"{at_maximum} half), not the source target {SOURCE_TARGET} from the unchanged expert half; the task stops"
+        )
+    return {"training_return_max": float(target), "at_maximum": at_maximum, "passed": True}
+
+
 def build_declaration(roots: Roots) -> dict[str, Any]:
     """Plan 2.1-2.4 from the corpus.  Raises -- and nothing is written -- if any check fails, if the training set's
     highest return is not the source target from the expert half (plan 2.2), if a prompt target moved, if the recipe is
@@ -562,12 +597,7 @@ def build_declaration(roots: Roots) -> dict[str, Any]:
     assert_checks(checks)
 
     target, scale = grid.recomputed_target_and_scale(selected)
-    at_maximum = sorted({row["half"] for row in rows if row["total_return"] == target})
-    if target != SOURCE_TARGET or at_maximum != ["expert"]:
-        raise ValueError(
-            f"plan 2.2: the training set's highest return is {target} (in the {at_maximum} half), not the source target "
-            f"{SOURCE_TARGET} from the unchanged expert half; the task stops"
-        )
+    source_check = source_target_check(rows, target)
     spec = tier_spec(rtg_scale=scale)
     dataset = grid.tier_dataset(spec, corpus)
     declared = grid.assert_declaration_matches_corpus(spec, selected)
@@ -634,7 +664,7 @@ def build_declaration(roots: Roots) -> dict[str, Any]:
         "checks": checks,
         "target_rtg": float(target),
         "rtg_scale": float(scale),
-        "source_target_check": {"training_return_max": float(target), "at_maximum": at_maximum, "passed": True},
+        "source_target_check": source_check,
         "assert_declaration_matches_corpus": declared,
         "normalisation": {
             "statistics_digest": grid.statistics_digest(dataset),
@@ -993,6 +1023,13 @@ def control_comparison(candidate: str | Path, reference: str | Path) -> dict[str
     return {key: value for key, value in comparison.items() if key != "parameters"}
 
 
+def control_seed_reproduces(entry: Mapping[str, Any]) -> bool:
+    """One control seed reproduces P4.7's checkpoint: every parameter ``torch.equal``, the key sets equal, and at least
+    one parameter compared (review A, 2026-11-19: two empty state dicts compared ``all_equal``)."""
+    return (entry.get("all_equal") is True and entry.get("keys_equal") is True
+            and isinstance(entry.get("n_parameters"), int) and entry["n_parameters"] > 0)
+
+
 def control_record(roots: Roots, *, steps: int = GRADIENT_STEPS) -> dict[str, Any]:
     """Plan section 3's control over the five control runs: each against P4.7's checkpoint of its seed.  Requires every
     control run done; passes only at 5 of 5."""
@@ -1006,7 +1043,7 @@ def control_record(roots: Roots, *, steps: int = GRADIENT_STEPS) -> dict[str, An
                       "reference": reference["path"], "reference_file_sha256": reference["file_sha256"],
                       "reference_checked_against": reference["checked_against"],
                       **control_comparison(candidate, reference["path"])})
-    equal = sum(1 for entry in seeds if entry["all_equal"] is True)
+    equal = sum(1 for entry in seeds if control_seed_reproduces(entry))
     return {
         "format_version": CONTROL_FORMAT_VERSION,
         "task": "P9.4",
@@ -1018,6 +1055,7 @@ def control_record(roots: Roots, *, steps: int = GRADIENT_STEPS) -> dict[str, An
         "n_seeds_equal": equal,
         "passed": equal == len(SEEDS),
         "library_versions": library_versions(),
+        "code": _code_provenance(),
     }
 
 
@@ -1049,6 +1087,19 @@ def assert_control_passed(roots: Roots) -> dict[str, Any]:
     if record.get("passed") is not True or record.get("n_seeds_equal") != len(SEEDS):
         raise ValueError("the control did not pass (" + str(record.get("n_seeds_equal")) + " of 5); nothing else is "
                          "trained or evaluated:\n" + control_report(record))
+    entries = list(record.get("seeds", ()))
+    problems = [] if [int(entry.get("seed", -1)) for entry in entries] == list(SEEDS) else ["its seeds are not plan "
+                                                                                             "section 3's five"]
+    for run, entry in zip(control_runs(), entries):
+        candidate = checkpoint_path(roots, run)
+        if not control_seed_reproduces(entry):
+            problems.append(f"seed {run.seed} is not a comparison that reproduced")
+        elif run_status(roots, run) != "done" or entry.get("candidate") != str(candidate) or entry.get(
+                "candidate_file_sha256") != file_sha256(candidate):
+            problems.append(f"seed {run.seed}'s checkpoint is not the one the record compared")
+    if problems:
+        raise ValueError(f"{control_record_path(roots)} does not re-derive from the five control checkpoints "
+                         f"({'; '.join(problems)}); it authorises nothing")
     return record
 
 
@@ -1136,14 +1187,22 @@ class ControlFailed(RuntimeError):
 
 
 def train_session(roots: Roots, *, hours: float, device: Any = None, steps: int = GRADIENT_STEPS, log_every: int = 0,
-                  enter_regime: bool = True) -> dict[str, Any]:
+                  enter_regime: bool = True, clock: Callable[[], float] | None = None) -> dict[str, Any]:
     """ONE training session (plan section 7): every refusal first -- the stop file, the committed declaration at its
     pin, Amendment A1's re-hash of the 200 files, P4.7's five reference checkpoints at their pins, the registered regime
     (``context_sweep.enter_registered_regime``) -- then the plan, printed; then the runs in order, the stop file checked
     before each.  The control record is written as soon as the fifth control run is done; a failed control raises
-    :class:`ControlFailed` with plan section 3's report, and no new-tier run ever starts before a passed record."""
+    :class:`ControlFailed` with plan section 3's report, and no new-tier run ever starts before a passed record.
+
+    The session ends between runs at its MEASURED hours bound too (plan section 7; review A, 2026-11-19: the bound acted
+    only through the planning estimates): no run starts once *clock* -- ``time.monotonic`` by default -- reads *hours*
+    past the session's start."""
+    import time
+
     import torch
 
+    now = time.monotonic if clock is None else clock
+    started = now()
     if stop_file(roots).exists():
         raise ValueError(f"{stop_file(roots)} exists: no session starts while it exists (the author removes it)")
     declaration = load_declaration(roots)
@@ -1168,6 +1227,11 @@ def train_session(roots: Roots, *, hours: float, device: Any = None, steps: int 
         if stop_file(roots).exists():
             ended_by = "the stop file"
             print(f"SESSION: {stop_file(roots)} exists -- the session ends here, between runs", flush=True)
+            break
+        if now() - started >= float(hours) * 3600.0:
+            ended_by = "the hours bound"
+            print(f"SESSION: {float(hours)} h have passed since the session started -- it ends here, between runs",
+                  flush=True)
             break
         if run.group == NEW_GROUP:
             assert_control_passed(roots)
@@ -1227,6 +1291,15 @@ def assert_held_out_draws(roots: Roots, *, backend: str) -> None:
         raise FileNotFoundError(f"held-out draws {missing[:3]} (of {len(missing)}) are not materialised for {backend}")
 
 
+def assert_evaluation_ready(roots: Roots, *, stage: str) -> None:
+    """``cityflow`` and ``sumo`` (and each of their commands) start only after the control's 5 of 5 and the new tier's
+    five runs (plan section 7)."""
+    assert_control_passed(roots)
+    for run in new_runs():
+        if run_status(roots, run) != "done":
+            raise ValueError(f"{run.name} is not trained; the {stage} stage starts after the train stage")
+
+
 def check(roots: Roots, *, stage: str) -> dict[str, Any]:
     """Every refusal of *stage* before the token; writes nothing.  ``train``: the committed declaration at its pin,
     Amendment A1's re-hash, P4.7's five references at their pins, every run readable, a failed control refused, CUDA.
@@ -1248,10 +1321,14 @@ def check(roots: Roots, *, stage: str) -> dict[str, Any]:
             raise ControlFailed(control_report(control))
         assert_cuda()
         return {"stage": stage, "ok": True}
-    assert_control_passed(roots)
-    for run in new_runs():
-        if run_status(roots, run) != "done":
-            raise ValueError(f"{run.name} is not trained; the {stage} stage starts after the train stage")
+    assert_evaluation_ready(roots, stage=stage)
+    if stage == "cityflow":
+        import offline.p9_4_evaluation as ev
+
+        refused = ev.refusals_on_disk(ev.route_ii_work(roots))
+        if refused:
+            raise ValueError(f"route (ii) has {refused} refusal record(s) on disk: the two routes disagreed and the "
+                             "cityflow stage does not start again; the author decides")
     assert_held_out_draws(roots, backend=stage)
     if stage == "sumo":
         for seed in SEEDS:
@@ -1264,7 +1341,7 @@ def smoke_roots(scratch: str | Path, *, repo_root: str | Path) -> Roots:
     tree (and so outside its ``output/``) and outside the repository; the corpus and the draws are read, never written."""
     path = Path(scratch).resolve()
     forbidden = [MAIN_TREE.resolve(), Path(repo_root).resolve()]
-    if any(path == root or root in path.parents for root in forbidden):
+    if any(path == root or root in path.parents or path in root.parents for root in forbidden):
         raise ValueError(f"the smoke root {path} must lie outside {[str(root) for root in forbidden]}")
     return Roots(repo_root=Path(repo_root), output_root=path / "output", corpus_root=DEFAULT_CORPUS_ROOT,
                  draws_root=DEFAULT_DRAWS_ROOT)
@@ -1347,6 +1424,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if getattr(args, "stall_dump", None) is not None:
         from offline import stall_guard
 
+        assert_target(args.stall_dump, roots)  # review D (2026-11-19): it is opened for writing, so it passes the barrier
         stall_guard.install(args.stall_dump, seconds=float(args.stall_seconds))
     try:
         if args.command == "declare":
@@ -1361,6 +1439,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             else:
                 train_session(roots, hours=args.hours, log_every=args.log_every)
         elif args.command == "route-i":
+            assert_evaluation_ready(roots, stage="cityflow")
             reason = session_stop_reason(roots, args.deadline_unix)
             if reason is not None:
                 print(f"route (i) not started: {reason}")
@@ -1368,15 +1447,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 ev.route_i(roots, load_declaration(roots))
                 print("route (i): complete on disk")
         elif args.command == "declare-route-ii":
+            assert_evaluation_ready(roots, stage="cityflow")
             manifest = ev.declare_route_ii(roots)
             print(f"route (ii) declared: {manifest['n_cells']} episodes")
         elif args.command == "route-ii":
+            assert_evaluation_ready(roots, stage="cityflow")
             outcome = ev.run_route_ii(roots, load_declaration(roots), shard=args.shard, of=args.of,
                                       deadline_unix=args.deadline_unix)
             print("ROUTE II " + json.dumps({key: outcome.get(key) for key in ("rolled", "skipped_already_present",
                                                                              "n_refused", "stopped", "not_reached")},
                                            sort_keys=True))
         elif args.command == "sumo":
+            assert_evaluation_ready(roots, stage="sumo")
             outcome = ev.sumo_session(roots, load_declaration(roots), workers=args.workers,
                                       deadline_unix=args.deadline_unix)
             print("SUMO SESSION " + json.dumps({"stopped_by": outcome.get("stopped_by"),
