@@ -1186,3 +1186,217 @@ def train_session(roots: Roots, *, hours: float, device: Any = None, steps: int 
                    "passed": read_control(roots)["passed"], "n_seeds_equal": read_control(roots)["n_seeds_equal"]}}
     print("SESSION SUMMARY " + json.dumps(summary, sort_keys=True), flush=True)
     return summary
+
+
+# ----------------------------------------------------------------------
+# The pre-token checks and the command line (plan section 7)
+# ----------------------------------------------------------------------
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+MAIN_TREE = Path("/home/filip/rltraffic")
+DEFAULT_OUTPUT_ROOT = MAIN_TREE / "output"
+DEFAULT_CORPUS_ROOT = MAIN_TREE / "datasets_v11"
+DEFAULT_DRAWS_ROOT = MAIN_TREE / "scenarios" / "draws"
+STAGES: tuple[str, ...] = ("train", "cityflow", "sumo")
+
+
+def assert_cuda() -> None:
+    import torch
+
+    if not torch.cuda.is_available():
+        raise ValueError("CUDA is not available; plan section 3's regime trains on cuda only")
+
+
+def assert_held_out_draws(roots: Roots, *, backend: str) -> None:
+    """Every held-out draw materialised for *backend*: CityFlow's config, or SUMO's parity configuration."""
+    from offline.materialise_draws import draw_config_path
+
+    import offline.transfer_curve as tc
+
+    missing = []
+    for draw in HELD_OUT_DRAWS:
+        if backend == "cityflow":
+            path = Path(draw_config_path("cityflow1x1", int(draw), out_root=roots.draws_root))
+        elif backend == "sumo":
+            path = Path(draw_config_path("cityflow1x1", int(draw), out_root=roots.draws_root)).parent / "parity" / tc.PARITY_CONFIG_NAME
+        else:
+            raise ValueError(f"unknown backend {backend!r}")
+        if not path.is_file():
+            missing.append(int(draw))
+    if missing:
+        raise FileNotFoundError(f"held-out draws {missing[:3]} (of {len(missing)}) are not materialised for {backend}")
+
+
+def check(roots: Roots, *, stage: str) -> dict[str, Any]:
+    """Every refusal of *stage* before the token; writes nothing.  ``train``: the committed declaration at its pin,
+    Amendment A1's re-hash, P4.7's five references at their pins, every run readable, a failed control refused, CUDA.
+    ``cityflow`` and ``sumo``: the declaration, the control at 5 of 5, the new tier's five runs done, the held-out
+    draws materialised (and P4.7's references for G1)."""
+    if stage not in STAGES:
+        raise ValueError(f"unknown stage {stage!r}")
+    if stop_file(roots).exists():
+        raise ValueError(f"{stop_file(roots)} exists: no session starts while it exists (the author removes it)")
+    declaration = load_declaration(roots)
+    if stage == "train":
+        assert_files_as_declared(declaration)
+        for seed in SEEDS:
+            reference_checkpoint(roots, seed)
+        for run in training_runs():
+            run_status(roots, run)
+        control = read_control(roots)
+        if control is not None and control.get("passed") is not True:
+            raise ControlFailed(control_report(control))
+        assert_cuda()
+        return {"stage": stage, "ok": True}
+    assert_control_passed(roots)
+    for run in new_runs():
+        if run_status(roots, run) != "done":
+            raise ValueError(f"{run.name} is not trained; the {stage} stage starts after the train stage")
+    assert_held_out_draws(roots, backend=stage)
+    if stage == "sumo":
+        for seed in SEEDS:
+            reference_checkpoint(roots, seed)
+    return {"stage": stage, "ok": True}
+
+
+def smoke_roots(scratch: str | Path, *, repo_root: str | Path) -> Roots:
+    """The roots of a reduced-size smoke run: its own ``output/`` under *scratch*, which must lie outside the main
+    tree (and so outside its ``output/``) and outside the repository; the corpus and the draws are read, never written."""
+    path = Path(scratch).resolve()
+    forbidden = [MAIN_TREE.resolve(), Path(repo_root).resolve()]
+    if any(path == root or root in path.parents for root in forbidden):
+        raise ValueError(f"the smoke root {path} must lie outside {[str(root) for root in forbidden]}")
+    return Roots(repo_root=Path(repo_root), output_root=path / "output", corpus_root=DEFAULT_CORPUS_ROOT,
+                 draws_root=DEFAULT_DRAWS_ROOT)
+
+
+def status(roots: Roots) -> dict[str, Any]:
+    """Every stage's state, recomputed from disk."""
+    import offline.p9_4_evaluation as ev
+
+    training: dict[str, str] = {}
+    for run in training_runs():
+        try:
+            training[run.name] = run_status(roots, run)
+        except ValueError as error:
+            training[run.name] = f"REFUSED: {error}"
+    control = read_control(roots)
+    return {"training": training,
+            "control": None if control is None else {"passed": control.get("passed"),
+                                                     "n_seeds_equal": control.get("n_seeds_equal")},
+            "cityflow": ev.cityflow_status(roots), "sumo": ev.sumo_status(roots), "stop_file": stop_file(roots).exists()}
+
+
+def _workers(value: str) -> int:
+    import argparse
+
+    number = int(value)
+    if not 1 <= number <= MAX_WORKERS:
+        raise argparse.ArgumentTypeError(f"--workers {value}: at most {MAX_WORKERS} (plan section 7)")
+    return number
+
+
+def build_parser() -> Any:
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="python -m offline.p9_4_mix50_fresh",
+                                     description="P9.4: mix50 retrained on a corrected mixture (exploratory)")
+    parser.add_argument("--repo-root", type=Path, default=_REPO_ROOT)
+    parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    parser.add_argument("--corpus-root", type=Path, default=DEFAULT_CORPUS_ROOT)
+    parser.add_argument("--draws-root", type=Path, default=DEFAULT_DRAWS_ROOT)
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("declare", help="plan 2.1-2.4: write output/p9_4/declaration.json once")
+    checking = sub.add_parser("check", help="every refusal of a stage, before its token; writes nothing")
+    checking.add_argument("--stage", choices=STAGES, required=True)
+    training = sub.add_parser("train", help="one training session: the control first, then mix50_fresh")
+    training.add_argument("--hours", type=float, required=True)
+    training.add_argument("--plan-only", action="store_true")
+    training.add_argument("--log-every", type=int, default=0)
+    for name in ("route-i", "route-ii"):
+        rolling = sub.add_parser(name, help=f"CityFlow {name}")
+        rolling.add_argument("--deadline-unix", type=float, default=None)
+        rolling.add_argument("--stall-dump", type=Path, default=None)
+        rolling.add_argument("--stall-seconds", type=float, default=120.0)
+        if name == "route-ii":
+            rolling.add_argument("--shard", type=int, default=0)
+            rolling.add_argument("--of", type=int, default=1)
+    sub.add_parser("declare-route-ii", help="write route (ii)'s campaign manifest once, before the shards")
+    sumo = sub.add_parser("sumo", help="one SUMO session: G1 and G2 first, then the 1,000 cells")
+    sumo.add_argument("--workers", type=_workers, required=True)
+    sumo.add_argument("--deadline-unix", type=float, required=True)
+    sub.add_parser("status", help="every stage's state, from disk")
+    reporting = sub.add_parser("report", help="the three artifacts of plan section 5")
+    reporting.add_argument("--out-dir", type=Path, default=None)
+    smoke = sub.add_parser("smoke", help="every distinct path once at reduced size, in a scratch root")
+    smoke.add_argument("--scratch", type=Path, required=True)
+    smoke.add_argument("--steps", type=int, default=20)
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """The command line.  A refusal raises (exit 1); a failed control or guard prints plan section 3's or 4.3's report
+    and exits 3."""
+    import sys
+
+    args = build_parser().parse_args(None if argv is None else list(argv))
+    roots = Roots(repo_root=Path(args.repo_root), output_root=Path(args.output_root),
+                  corpus_root=Path(args.corpus_root), draws_root=Path(args.draws_root))
+    import offline.p9_4_evaluation as ev
+
+    if getattr(args, "stall_dump", None) is not None:
+        from offline import stall_guard
+
+        stall_guard.install(args.stall_dump, seconds=float(args.stall_seconds))
+    try:
+        if args.command == "declare":
+            payload = declare(roots)
+            print(json.dumps({"target_rtg": payload["target_rtg"], "rtg_scale": payload["rtg_scale"],
+                              "checks": {name: payload["checks"][name]["passed"] for name in CHECK_NAMES}}, sort_keys=True))
+        elif args.command == "check":
+            print(json.dumps(check(roots, stage=args.stage), sort_keys=True))
+        elif args.command == "train":
+            if args.plan_only:
+                print("SESSION PLAN " + json.dumps(train_plan(roots, hours=args.hours).as_json(), sort_keys=True))
+            else:
+                train_session(roots, hours=args.hours, log_every=args.log_every)
+        elif args.command == "route-i":
+            reason = session_stop_reason(roots, args.deadline_unix)
+            if reason is not None:
+                print(f"route (i) not started: {reason}")
+            else:
+                ev.route_i(roots, load_declaration(roots))
+                print("route (i): complete on disk")
+        elif args.command == "declare-route-ii":
+            manifest = ev.declare_route_ii(roots)
+            print(f"route (ii) declared: {manifest['n_cells']} episodes")
+        elif args.command == "route-ii":
+            outcome = ev.run_route_ii(roots, load_declaration(roots), shard=args.shard, of=args.of,
+                                      deadline_unix=args.deadline_unix)
+            print("ROUTE II " + json.dumps({key: outcome.get(key) for key in ("rolled", "skipped_already_present",
+                                                                             "n_refused", "stopped", "not_reached")},
+                                           sort_keys=True))
+        elif args.command == "sumo":
+            outcome = ev.sumo_session(roots, load_declaration(roots), workers=args.workers,
+                                      deadline_unix=args.deadline_unix)
+            print("SUMO SESSION " + json.dumps({"stopped_by": outcome.get("stopped_by"),
+                                                "new": outcome.get("new")}, sort_keys=True, default=str))
+        elif args.command == "status":
+            print(json.dumps(status(roots), indent=2, sort_keys=True))
+        elif args.command == "report":
+            import offline.p9_4_report as rep
+
+            print(json.dumps(rep.write_artifacts(roots, args.out_dir), indent=2, sort_keys=True))
+        elif args.command == "smoke":
+            import offline.p9_4_smoke as smoke
+
+            print(json.dumps(smoke.run_smoke(smoke_roots(args.scratch, repo_root=roots.repo_root),
+                                             steps=args.steps), indent=2, sort_keys=True))
+    except (ControlFailed, ev.GuardFailed) as failure:
+        print(str(failure), file=sys.stderr, flush=True)
+        return 3
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover - the driver's entry point
+    raise SystemExit(main())
