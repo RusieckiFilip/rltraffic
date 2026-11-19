@@ -166,8 +166,9 @@ def route_i_payload(roots: p94.Roots, declaration: Mapping[str, Any], *, seeds: 
     from offline.dt_gate import runtime_provenance
 
     spec = p94.tier_spec(rtg_scale=float(declaration["rtg_scale"]))
+    target = float(p94.SOURCE_TARGET)
     checkpoints = {int(seed): new_checkpoint_identity(roots, int(seed), steps=steps)["path"] for seed in seeds}
-    produced = evaluate_route_i(roots, spec, checkpoints, target_rtg=p94.SOURCE_TARGET, draws=draws, steps=steps)
+    produced = evaluate_route_i(roots, spec, checkpoints, target_rtg=target, draws=draws, steps=steps)
     grid.assert_cell_complete("dt", p94.TIER, list(seeds), list(draws), produced)
     return {
         "format_version": grid.GRID_FORMAT_VERSION,
@@ -176,7 +177,7 @@ def route_i_payload(roots: p94.Roots, declaration: Mapping[str, Any], *, seeds: 
         "method": "dt",
         "declared_gradient_steps": int(steps),
         "engine_seed": int(p94.ENGINE_SEED),
-        "target_rtg": float(p94.SOURCE_TARGET),
+        "target_rtg": target,
         "cell": grid.cell_stats(produced),
         "episodes": [
             {"arm": e.arm, "seed": e.seed, "draw_id": e.draw_id, "att_horizon": e.att_horizon,
@@ -228,6 +229,11 @@ def route_ii_keys(*, seeds: Sequence[int] = p94.SEEDS, draws: Sequence[int] = p9
     from offline import att_rederivation as ar
 
     return [ar.CellKey(CITYFLOW_SCENARIO, CITYFLOW_ARM, int(seed), int(draw)) for seed in seeds for draw in draws]
+
+
+def refusals_on_disk(work: str | Path) -> int:
+    """Route (ii)'s refusal records in *work* -- ``campaign_status``'s own count (``refused_*.json``)."""
+    return len(list(Path(work).glob("refused_*.json")))
 
 
 def committed_from_route_i(payload: Mapping[str, Any]) -> dict[tuple[str, str, int | None, int], float]:
@@ -295,7 +301,11 @@ def run_route_ii(roots: p94.Roots, declaration: Mapping[str, Any], *, shard: int
                  draws: Sequence[int] = p94.HELD_OUT_DRAWS, steps: int = p94.GRADIENT_STEPS) -> dict[str, Any]:
     """Route (ii) on this shard's episodes: ``att_rederivation.run_campaign`` with route (i)'s values as ``committed``,
     so ``reproduces_committed`` means the two routes agree under ``==``.  ANY refusal stops the stage: a disagreement is
-    a finding, never a cell to skip.  A session ends between episodes at *deadline_unix* or at the stop file."""
+    a finding, never a cell to skip.  A session ends between episodes at *deadline_unix* or at the stop file.
+
+    A refusal PERSISTS (review B, 2026-11-19): ``run_campaign`` records one in ``refused_*.json`` and would retry the
+    episode -- and rewrite that record -- on its next call, so no shard starts while any record is on disk, every shard
+    stops at its next episode once one appears, and every shard that saw one exits refusing."""
     from offline import att_rederivation as ar
     from offline.admission_probe import ProbeRoots
     from offline.offline_baselines import pin_torch_threads
@@ -312,6 +322,10 @@ def run_route_ii(roots: p94.Roots, declaration: Mapping[str, Any], *, shard: int
     ar.assert_manifest_agrees(path, manifest)
     work = route_ii_work(roots)
     p94.assert_target(work, roots)
+    already = refusals_on_disk(work)
+    if already:
+        raise RuntimeError(f"route (ii) has {already} refusal record(s) on disk in {work}: a disagreement stops the "
+                           "stage, and no episode is retried and no record rewritten -- the author decides")
     keys = ar.shard_cells(route_ii_keys(seeds=seeds, draws=draws), shard=shard, of=of)
     probe = ProbeRoots(repo_root=Path(roots.repo_root), corpus_root=Path(roots.corpus_root),
                        draws_root=Path(roots.draws_root), output_root=Path(roots.output_root), work_dir=work)
@@ -320,16 +334,20 @@ def run_route_ii(roots: p94.Roots, declaration: Mapping[str, Any], *, shard: int
         outcome = ar.run_campaign(
             keys, roots=probe, engine_seed=p94.ENGINE_SEED, device=None, committed=committed_from_route_i(payload),
             protected=(), factory_builder=factory_builder(roots, steps=steps),
-            should_stop=lambda: p94.session_stop_reason(roots, deadline_unix) is not None,
+            should_stop=lambda: p94.session_stop_reason(roots, deadline_unix) is not None or refusals_on_disk(work) > 0,
             env_settings_builder=env_settings_builder(roots, declaration),
         )
     finally:
         pin_torch_threads(previous)
-    if outcome["n_refused"]:
-        first = outcome["refused"][0]
+    on_disk = refusals_on_disk(work)
+    if outcome["n_refused"] or on_disk:
+        first = outcome["refused"][0] if outcome["refused"] else None
+        here = ("" if first is None else f"; this shard's first: {first['arm']} seed {first['seed']} draw "
+                f"{first['draw_id']}: {first['reason']}")
         raise RuntimeError(
-            f"route (ii) does not reproduce route (i) on {outcome['n_refused']} episode(s); first {first['arm']} seed "
-            f"{first['seed']} draw {first['draw_id']}: {first['reason']}. The stage stops; the author decides"
+            f"route (ii) does not reproduce route (i): {on_disk} refusal record(s) on disk in {work} (this shard "
+            f"refused {outcome['n_refused']}{here}). The stage stops; no episode is retried and no record rewritten -- "
+            "the author decides"
         )
     return outcome
 
@@ -347,7 +365,7 @@ def cityflow_status(roots: p94.Roots) -> dict[str, Any]:
             route_i_done = False
     route_ii = ar.campaign_status(route_ii_work(roots))
     return {"route_i_complete": route_i_done, "route_ii": route_ii,
-            "complete": route_i_done and bool(route_ii["complete"])}
+            "complete": route_i_done and bool(route_ii["complete"]) and int(route_ii["refused"]) == 0}
 
 
 # ----------------------------------------------------------------------
@@ -612,16 +630,37 @@ def guard_report(record: Mapping[str, Any]) -> str:
 
 
 def assert_guards_authorise(roots: p94.Roots, record: Mapping[str, Any]) -> None:
-    """A guard record authorises new cells only if it is this task's, passed, and was written by THIS code."""
+    """A guard record authorises new cells only if it is this task's, passed, written by THIS code, and re-derives
+    today: every guard chunk still reusable (:func:`chunk_problems`) and G1's and G2's comparisons, recomputed from the
+    chunks and today's committed artifacts (their digests included), equal to the record's (review B and D's N10,
+    2026-11-19: a record was trusted on its word)."""
     import offline.transfer_curve as tc
 
+    path = guards_record_path(roots)
     if record.get("format_version") != GUARDS_FORMAT_VERSION:
-        raise ValueError(f"{guards_record_path(roots)} is not a {GUARDS_FORMAT_VERSION} record")
+        raise ValueError(f"{path} is not a {GUARDS_FORMAT_VERSION} record")
     if record.get("passed") is not True:
         raise GuardFailed(guard_report(record))
     if record.get("git_dirty") is not False or tc.code_changed_since(str(record.get("git_commit"))):
-        raise ValueError(f"{guards_record_path(roots)} was written by other or uncommitted code; it proves nothing "
-                         "about this code")
+        raise ValueError(f"{path} was written by other or uncommitted code; it proves nothing about this code")
+    problems: list[str] = []
+    for kind, cells in (("g1", g1_cells()), ("g2", g2_cells())):
+        for cell in cells:
+            chunk = cell_path(roots, kind, cell)
+            try:
+                payload = json.loads(chunk.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as error:
+                problems.append(f"{chunk.name}: unreadable ({error})")
+                continue
+            found = chunk_problems(roots, kind, cell, payload, {})
+            if found:
+                problems.append(f"{chunk.name}: {'; '.join(found)}")
+    if problems:
+        raise ValueError(f"{path}: {len(problems)} guard chunk(s) may not be reused (first {problems[0]}); the record "
+                         "authorises nothing")
+    if g1_comparison(roots, g1_cells()) != record.get("g1") or g2_comparison(roots, g2_cells()) != record.get("g2"):
+        raise ValueError(f"{path} does not re-derive from its chunks and today's committed artifacts; it authorises "
+                         "nothing")
 
 
 def guards(roots: p94.Roots, declaration: Mapping[str, Any], *, workers: int, deadline_unix: float | None,
@@ -653,6 +692,7 @@ def guards(roots: p94.Roots, declaration: Mapping[str, Any], *, workers: int, de
     print(guard_report(record), flush=True)
     if not record["passed"]:
         raise GuardFailed(guard_report(record))
+    assert_guards_authorise(roots, record)
     return {"record": record, "rolled": outcome["rolled"]}
 
 

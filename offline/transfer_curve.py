@@ -2792,17 +2792,19 @@ SUBJECT_CHECKPOINT_KEYS: frozenset[str] = frozenset({"subject", "seed", "path", 
 def _assert_subject_inputs_admissible(cell: Mapping[str, Any], subject_inputs: Mapping[str, Any]) -> None:
     """P9.4's hook (``docs/plans/p9.4_mix50_fresh.md``): refuse *subject_inputs* wherever they do not belong.
 
-    Supplied inputs are admitted only for an hz1x1 DT cell of a subject NO registered table names, outside P7.3c's
-    stages, and only well-formed: exactly :data:`SUBJECT_INPUT_KEYS`, a finite target, facts and a checkpoint identity
-    of the cell's own subject and seed.  A registered subject's prompt, support range and checkpoint pin are READ from
-    their registrations (A17, G1) and are never supplied by a caller.  Runs before any input is resolved.
+    Supplied inputs are admitted only for an hz1x1 DT cell of a subject NO registered table names (P7.3a's, the
+    calibration layout's, the anchor's, grid4x4's and every P7.3c arm's), at a stage no registered campaign uses (P7.3a's,
+    P7.3b's, grid4x4's and P7.3c's; a cell without a stage is refused), and only well-formed: exactly
+    :data:`SUBJECT_INPUT_KEYS`, a finite target, facts and a checkpoint identity of the cell's own subject and seed.  A
+    registered subject's prompt, support range and checkpoint pin are READ from their registrations (A17, G1) and are
+    never supplied by a caller.  Runs before any input is resolved.
     """
     import math
 
     from offline.transfer_calibration import SUBJECTS as SUBJECT_LAYOUT
 
     subject = cell.get("subject")
-    registered = {*SUBJECTS, *SUBJECT_LAYOUT, ANCHOR_SUBJECT, GRID4X4_SUBJECT}
+    registered = {*SUBJECTS, *SUBJECT_LAYOUT, ANCHOR_SUBJECT, GRID4X4_SUBJECT, *(row.subject for row in P7_3C_ARMS)}
     if str(cell.get("kind")) != "dt":
         raise ValueError(f"{cell_chunk_name(cell)}: only a DT cell takes subject inputs; this one is {cell.get('kind')!r}")
     if subject is None or str(subject) in registered:
@@ -2814,6 +2816,10 @@ def _assert_subject_inputs_admissible(cell: Mapping[str, Any], subject_inputs: M
         raise ValueError(f"{cell_chunk_name(cell)}: subject inputs are supplied on hz1x1 only, not {scenario_of(cell)!r}")
     if str(cell.get("stage")) in P7_3C_STAGES:
         raise ValueError(f"{cell_chunk_name(cell)}: subject inputs are not a P7.3c cell's; P7.3c admits by its predicate")
+    stage = cell.get("stage")
+    if not isinstance(stage, str) or not stage or stage in {*STAGES, STAGE_GRID4X4, *P7_3C_STAGES, STAGE_P7_3C}:
+        raise ValueError(f"{cell_chunk_name(cell)}: subject inputs need an unregistered stage, not {stage!r}; a registered "
+                         "campaign's cells are rolled from their registrations")
     if not SUBJECT_INPUT_KEYS <= set(subject_inputs) <= SUBJECT_INPUT_KEYS | SUBJECT_INPUT_OPTIONAL_KEYS:
         raise ValueError(
             f"subject inputs carry exactly {sorted(SUBJECT_INPUT_KEYS)} and optionally "

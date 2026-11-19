@@ -401,6 +401,9 @@ def test_passed_guards_from_this_code_authorise_the_new_cells(
         "rolled": len(tasks), "left": 0, "stopped_by": None, "seconds": []})
     monkeypatch.setattr(tc, "_git_provenance", lambda: {"git_commit": "a" * 40, "git_dirty": False})
     monkeypatch.setattr(tc, "code_changed_since", lambda commit, other="HEAD": [])
+    # Since review B (2026-11-19) authorisation re-validates every guard chunk; these chunks are stand-ins, so the
+    # validator seam is stubbed like the two above (tests/test_p9_4_evaluation_review.py covers its refusals).
+    monkeypatch.setattr(ev, "chunk_problems", lambda *args, **kwargs: [])
     outcome = ev.sumo_session(roots, DECLARATION, workers=2, deadline_unix=None)
     assert kinds == ["g1", "g2", "new"] and outcome["guards"]["passed"] is True
     monkeypatch.setattr(tc, "code_changed_since", lambda commit, other="HEAD": ["offline/p9_4_evaluation.py"])
