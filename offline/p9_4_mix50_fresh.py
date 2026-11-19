@@ -682,7 +682,7 @@ def declare(roots: Roots) -> dict[str, Any]:
 
 #: ``docs/data/p9_4_declaration.json``'s sha256, typed in the commit that commits the declaration (step C) and moved
 #: only in a commit that also moves the file.  ``None`` until then: no training session starts without it.
-DECLARATION_SHA256: str | None = None
+DECLARATION_SHA256: str | None = "8f1f5c32e17253abe22553acf028edafe5ba23b30671a6633d16ea2d193e6f4c"
 DECLARATION_NAME = "p9_4_declaration.json"
 
 
