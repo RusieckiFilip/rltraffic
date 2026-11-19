@@ -2,8 +2,9 @@
 # P9.4 -- the transfer test's second DT retrained on a corrected 50 % mixture (docs/plans/p9.4_mix50_fresh.md, tags
 # p9.4-plan and p9.4-plan-a1).  EXPLORATORY, ADDED AFTER THE RESULTS.  Three stages, each run by the author in tmux.
 #
-# 0. USAGE -- from a DETACHED RUN WORKTREE at the reviewed commit (a tree on a branch, at another commit or with any
-#    uncommitted or untracked file is refused), one tmux session per stage, started by the author:
+# 0. USAGE -- from a DETACHED RUN WORKTREE at the reviewed commit, named by its FULL 40-character sha (a tree on a
+#    branch, at another commit, with any uncommitted, untracked or ignored file, or whose git state cannot be read is
+#    refused), one tmux session per stage, started by the author:
 #        git -C /home/filip/rltraffic worktree add --detach /home/filip/rltraffic-p94-run <commit>
 #      Step 1, open a pane:    mkdir -p /home/filip/rltraffic/output/p9_4_runs && tmux new -s p94-<stage>
 #      Step 2, at ITS PROMPT:  set -o pipefail; bash /home/filip/rltraffic-p94-run/offline/campaigns/p9_4_mix50_fresh.sh <stage> <commit> 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_4_runs/<stage>_capture.txt; echo "DRIVER EXIT $?"
@@ -28,6 +29,8 @@
 #
 # 1. WHAT IT PRODUCES -- only under output/p9_4/ and output/p9_4_runs/ (the module's barrier refuses anything else).
 #    Nothing under output/ is deleted, moved or overwritten; a file that may not be reused stops the stage untouched.
+#    The driver's own logs are new files per session, written under `set -o noclobber`; no interpreter writes into the
+#    run tree (PYTHONDONTWRITEBYTECODE), so the next session's clean-tree check sees the tree as it was checked out.
 #
 # 2. HANGS (DEFERRED 104): CityFlow's engine destructor can hang at an env's close.  Every CityFlow worker -- route (i)
 #    and route (ii)'s shards -- runs under `restarting` (P9.1's loop): armed by --stall-dump and --stall-seconds
@@ -36,6 +39,7 @@
 #    P94_MAX_RESTARTS) times; it resumes from the files on disk.  Any other non-zero exit stops the stage.
 
 set -euo pipefail
+set -o noclobber
 
 MAIN=/home/filip/rltraffic
 PY=$MAIN/.venv/bin/python
@@ -61,9 +65,12 @@ fail() {
   exit 1
 }
 
-STAGE=${1:?usage: p9_4_mix50_fresh.sh train|cityflow|sumo <commit>}
-COMMIT=${2:?usage: p9_4_mix50_fresh.sh train|cityflow|sumo <commit>}
+[ "$#" -eq 2 ] || refuse "usage: p9_4_mix50_fresh.sh train|cityflow|sumo <the reviewed commit's full 40-character sha>"
+STAGE=$1
+COMMIT=$2
 case "$STAGE" in train|cityflow|sumo) ;; *) refuse "unknown stage $STAGE (train, cityflow or sumo)" ;; esac
+[[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]] \
+  || refuse "the commit must be the full 40-character sha the report reads back (git rev-parse <commit>), not $COMMIT"
 [[ "$WORKERS" =~ ^[1-6]$ ]] || refuse "WORKERS must be 1-6 (plan section 7), not $WORKERS"
 [[ "$SESSION_HOURS" =~ ^[0-9]*([.][0-9]+)?$ && "$SESSION_HOURS" =~ [1-9] ]] \
   || refuse "P94_SESSION_HOURS must be a positive number of hours, not $SESSION_HOURS"
@@ -73,22 +80,32 @@ case "$STAGE" in train|cityflow|sumo) ;; *) refuse "unknown stage $STAGE (train,
 
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
+export PYTHONDONTWRITEBYTECODE=1
 unset CUBLAS_WORKSPACE_CONFIG
 for variable in COVERAGE_PROCESS_START COVERAGE_PROCESS_CONFIG PYTHONTRACEMALLOC PYTHONDEVMODE PYTHONMALLOC PYTHONPROFILEIMPORTTIME; do
   [ -z "${!variable+set}" ] || refuse "$variable is set: a tracer, profiler or debug allocator does not belong in a run"
 done
 
 [ -x "$PY" ] || refuse "no interpreter at $PY"
-[ -z "$(git -C "$WORK_TREE" status --porcelain)" ] || refuse "$WORK_TREE has uncommitted changes or untracked files"
-[ "$(git -C "$WORK_TREE" rev-parse HEAD)" = "$(git -C "$WORK_TREE" rev-parse --verify --quiet "$COMMIT^{commit}" || true)" ] \
-  || refuse "$WORK_TREE is not at $COMMIT"
-if git -C "$WORK_TREE" symbolic-ref -q HEAD >/dev/null; then
-  refuse "$WORK_TREE is on a branch; the run tree is a DETACHED worktree at the reviewed commit"
-fi
+# Every git check FAILS CLOSED (review D, 2026-11-19): a git that cannot answer is a refusal, never an empty answer.
+porcelain=$(git -C "$WORK_TREE" status --porcelain --ignored) \
+  || refuse "git cannot read the state of $WORK_TREE; a tree whose state cannot be read is not run"
+[ -z "$porcelain" ] \
+  || refuse "$WORK_TREE has uncommitted changes or untracked or ignored files: $(printf '%s' "$porcelain" | head -3 | tr '\n' ' ')"
+head=$(git -C "$WORK_TREE" rev-parse --verify HEAD) || refuse "git cannot read the HEAD of $WORK_TREE"
+[ "$head" = "$COMMIT" ] || refuse "$WORK_TREE is not at $COMMIT (its HEAD is $head)"
+on_branch=0
+git -C "$WORK_TREE" symbolic-ref -q HEAD >/dev/null || on_branch=$?
+case "$on_branch" in
+  0) refuse "$WORK_TREE is on a branch; the run tree is a DETACHED worktree at the reviewed commit" ;;
+  1) ;;
+  *) refuse "git cannot tell whether $WORK_TREE is on a branch (git symbolic-ref exited $on_branch)" ;;
+esac
 if pgrep -f '^[^ ]*python[^ ]* -P -m offline[.]p9_4_mix50_fresh (.* )?(train|route-i|declare-route-ii|route-ii|sumo)( |$)' >/dev/null; then
   refuse "another P9.4 stage is running (a training, a CityFlow route or a SUMO session)"
 fi
-LOADED=$(PYTHONPATH=$WORK_TREE "$PY" -P -c 'import offline.p9_4_mix50_fresh as m; print(m.__file__)')
+LOADED=$(PYTHONPATH=$WORK_TREE "$PY" -P -c 'import offline.p9_4_mix50_fresh as m; print(m.__file__)') \
+  || refuse "the P9.4 module does not import from $WORK_TREE"
 [ "$LOADED" = "$WORK_TREE/offline/p9_4_mix50_fresh.py" ] || refuse "the module loads from $LOADED, not from $WORK_TREE"
 [ ! -e "$RUNS/STOP" ] || refuse "$RUNS/STOP exists: no session starts while it exists (the author removes it, by hand, to start one)"
 
@@ -186,29 +203,30 @@ session_over() {
   "$PY" -c 'import sys, time; sys.exit(0 if time.time() >= float(sys.argv[1]) else 1)' "$DEADLINE"
 }
 
+# One file per call (noclobber refuses a second write to a name): status_complete.json, then possibly status_end.json.
 stage_status() {
-  local code=0
-  cr status >"$LOGS/status.json" 2>"$LOGS/status.err" || code=$?
-  [ "$code" -eq 0 ] || fail "the status refused with $code (log $LOGS/status.err)"
+  local name=$1 code=0
+  cr status >"$LOGS/$name.json" 2>"$LOGS/$name.err" || code=$?
+  [ "$code" -eq 0 ] || fail "the status refused with $code (log $LOGS/$name.err)"
 }
 
 session_end() {
   local why="the hours bound ($SESSION_HOURS h)"
   [ ! -e "$RUNS/STOP" ] || why="the stop file $RUNS/STOP"
-  stage_status
-  echo "stage $STAGE $STAMP: SESSION ENDED at $why -- what is left is in $LOGS/status.json; the next session resumes from disk under a new TOKEN_$STAGE"
+  stage_status status_end
+  echo "stage $STAGE $STAMP: SESSION ENDED at $why -- what is left is in $LOGS/status_end.json; the next session resumes from disk under a new TOKEN_$STAGE"
   exit 0
 }
 
 complete_or_end() {
   local key=$1
-  stage_status
-  if "$PY" -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))[sys.argv[2]]["complete"] is True else 1)' "$LOGS/status.json" "$key"; then
-    echo "stage $STAGE $STAMP: COMPLETE (status $LOGS/status.json)"
+  stage_status status_complete
+  if "$PY" -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))[sys.argv[2]]["complete"] is True else 1)' "$LOGS/status_complete.json" "$key"; then
+    echo "stage $STAGE $STAMP: COMPLETE (status $LOGS/status_complete.json)"
   elif session_over; then
     session_end
   else
-    fail "the $STAGE stage is not complete on disk although no stop came: read $LOGS/status.json"
+    fail "the $STAGE stage is not complete on disk although no stop came: read $LOGS/status_complete.json"
   fi
 }
 
