@@ -191,7 +191,8 @@ def test_formatting_keeps_every_printed_interval_on_its_branchs_side() -> None:
     assert rep.fmt_interval(1.004, 1.3, unit="rho") == ("1.004", "1.300")
     assert rep.fmt_estimate(-0.03, -0.06, -0.01, unit="s") == ("-0.03", "-0.06", "-0.01")
     assert rep.fmt_number(-0.04, unit="s") == "-0.04" and rep.fmt_number(-0.0, unit="s") == "0.0"
-    assert rep.fmt_p(0.0123) == "0.012" and rep.fmt_p(3.2e-05) == "3.2e-05" and rep.fmt_p(1.0) == "1.000"
+    # 3.2e-05 printed as "3.2e-05" until review C (2026-11-19): Python's notation in a paper's sentence.
+    assert rep.fmt_p(0.0123) == "0.012" and rep.fmt_p(3.2e-05) == "3.2 × 10⁻⁵" and rep.fmt_p(1.0) == "1.000"
 
 
 # ----------------------------------------------------------------------

@@ -26,15 +26,21 @@ CityFlow ``att_engine`` is primary and ``att_ours`` beside it (A11(c), Rule R).
 
 THE NUMBERS IN THE SENTENCES
 ----------------------------
-A branch is chosen from the exact values.  The printed values share one number of decimals -- one for seconds, two for
-rho by default -- raised until every printed value keeps its exact sign relative to 0 (and, for rho, to 1), so a
-printed interval never contradicts its branch.  A p-value prints with three decimals, or two significant digits below
-0.001.
+A branch is chosen from the exact values.  The printed values of one slot group share one number of decimals -- one
+for seconds and counts, two for rho by default -- raised until every printed value keeps its exact side of 0 (and, for
+rho, of 1) and any two values that differ print differently (so in their order), at most twelve; a value that cannot is
+refused, never printed against its branch.  A p-value prints with three decimals, raised until it keeps its side of
+0.05, 0.01 and 0.001; below 0.001 as ``a × 10⁻ⁿ`` with two significant digits, raised until it keeps its side of 0.001.
+
+R5's readings (plan section 5) are R1's and R2's -- the side of 0 each CI lies on, as S1-S4 read it -- and R3's two,
+"rho > 0" if the CI lies above 0 and "rho < 1" if it lies below 1, under each pair; S10 compares S1, S3, S5 and S6's
+branches (plan section 6), which is a different, finer question.
 """
 
 from __future__ import annotations
 
 import math
+import os
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -57,6 +63,12 @@ PAIRS: Mapping[str, Mapping[str, str]] = {
     "registered": {"fixedtime": "fixedtime", "maxpressure": "maxpressure"},
     "aligned": {"fixedtime": "fixedtime_kcf", "maxpressure": "maxpressure_1to1"},
 }
+
+#: R5's readings, as plan section 5 defines them (review C, 2026-11-19, found the code comparing S5/S6's branches).
+R5_READINGS_RULE = ("plan section 5: R1's and R2's readings are the side of 0 each CI lies on (below / contains / "
+                    "above, as S1-S4 read it); R3's are 'rho > 0' (the CI lies above 0) and 'rho < 1' (it lies below 1) "
+                    "under each pair; all_agree compares them on e_sumo, att_env beside it; S10 compares S1, S3, S5 and "
+                    "S6's branches (plan section 6)")
 
 #: The instruction's sign convention for R4 (A17(d) states its direction on rho).
 R4_DIRECTION = ("A17(d)'s registered direction is calibrated rho >= source rho; on ATT the same direction is "
@@ -189,24 +201,60 @@ def rho_reading(low: float, high: float) -> str:
     return "contains_0_and_1"
 
 
+def rho_flags(low: float, high: float) -> dict[str, bool]:
+    """R3's two readings (plan section 5): "rho > 0" if the CI lies above 0, "rho < 1" if it lies below 1."""
+    return {"rho > 0": float(low) > 0.0, "rho < 1": float(high) < 1.0}
+
+
+def r1_r3_readings(registered: Mapping[str, Any], aligned: Mapping[str, Any], key: str) -> dict[str, Any]:
+    """R5's "every reading of R1-R3" for one model and arm on *key*, from its ``by_subject_arm`` entries under the two
+    pairs: R1's and R2's readings are the side of 0 their CI lies on (:func:`difference_reading`, as S1-S4 read it),
+    R3's are :func:`rho_flags` under each pair."""
+
+    def side(entry: Mapping[str, Any], role: str) -> str:
+        block = entry["paired_att"][key][role]
+        return difference_reading(block["ci95_low"], block["ci95_high"])
+
+    out: dict[str, Any] = {
+        "R1 fixed-time k = 4": side(registered, "fixedtime"), "R1 fixed-time tuned k": side(aligned, "fixedtime"),
+        "R2 MaxPressure per-link": side(registered, "maxpressure"),
+        "R2 MaxPressure lane-once": side(aligned, "maxpressure"),
+    }
+    for pair, entry in (("registered", registered), ("aligned", aligned)):
+        for name, value in rho_flags(entry[key]["ci95_low"], entry[key]["ci95_high"]).items():
+            out[f"R3 {pair} {name}"] = value
+    return out
+
+
 # ----------------------------------------------------------------------
 # Formatting: the printed values keep their sides
 # ----------------------------------------------------------------------
 
-_DEFAULT_DECIMALS = {"s": 1, "rho": 2}
-_REFERENCES = {"s": (0.0,), "rho": (0.0, 1.0)}
+_DEFAULT_DECIMALS = {"s": 1, "n": 1, "rho": 2}
+_REFERENCES = {"s": (0.0,), "n": (0.0,), "rho": (0.0, 1.0)}
+_MAX_DECIMALS = 12
 
 
 def _side(value: float, reference: float) -> int:
     return (value > reference) - (value < reference)
 
 
+def _keeps(values: Sequence[float], decimals: int, references: Sequence[float]) -> bool:
+    """Every printed value on its exact value's side of every reference, and any two values that differ printed
+    differently (rounding is monotone, so they also keep their order)."""
+    printed = [float(_fmt(value, decimals)) for value in values]
+    if any(_side(shown, ref) != _side(float(value), ref) for value, shown in zip(values, printed) for ref in references):
+        return False
+    return all(printed[i] != printed[j] for i in range(len(values)) for j in range(i + 1, len(values))
+               if float(values[i]) != float(values[j]))
+
+
 def _decimals(values: Sequence[float], unit: str) -> int:
-    for decimals in range(_DEFAULT_DECIMALS[unit], 7):
-        if all(_side(round(float(v), decimals), ref) == _side(float(v), ref)
-               for v in values for ref in _REFERENCES[unit]):
+    for decimals in range(_DEFAULT_DECIMALS[unit], _MAX_DECIMALS + 1):
+        if _keeps(values, decimals, _REFERENCES[unit]):
             return decimals
-    return 6
+    raise ValueError(f"{list(values)} cannot be printed with at most {_MAX_DECIMALS} decimals keeping their sides of "
+                     f"{_REFERENCES[unit]} and their differences; the slot is not filled")
 
 
 def _fmt(value: float, decimals: int) -> str:
@@ -228,8 +276,28 @@ def fmt_estimate(mean: float, low: float, high: float, *, unit: str) -> tuple[st
     return _fmt(mean, decimals), _fmt(low, decimals), _fmt(high, decimals)
 
 
+_P_REFERENCES = (0.05, 0.01, 0.001)
+_SUPERSCRIPT = str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+
 def fmt_p(p: float) -> str:
-    return f"{float(p):.2g}" if float(p) < 0.001 else f"{float(p):.3f}"
+    """The Wilcoxon p as a sentence prints it: three decimals, raised until it keeps its side of 0.05, 0.01 and 0.001;
+    below 0.001 as ``a × 10⁻ⁿ`` with two significant digits, raised until it keeps its side of 0.001.  A value that is
+    not in (0, 1] is refused (the registered test returns 1.0 with no pair left, and more than 0 at n <= 100)."""
+    value = float(p)
+    if not 0.0 < value <= 1.0:
+        raise ValueError(f"{p!r} is not a p-value of the registered test")
+    if value >= 0.001:
+        for decimals in range(3, _MAX_DECIMALS + 1):
+            text = f"{value:.{decimals}f}"
+            if all(_side(float(text), ref) == _side(value, ref) for ref in _P_REFERENCES):
+                return text
+    else:
+        for digits in range(2, _MAX_DECIMALS + 1):
+            mantissa, exponent = f"{value:.{digits - 1}e}".split("e")
+            if _side(float(f"{mantissa}e{exponent}"), 0.001) == _side(value, 0.001):
+                return f"{mantissa} × 10{str(int(exponent)).translate(_SUPERSCRIPT)}"
+    raise ValueError(f"the p-value {p!r} cannot be printed keeping its sides of {_P_REFERENCES}")
 
 
 # ----------------------------------------------------------------------
@@ -392,7 +460,7 @@ def sentence_s11(att: Mapping[str, Any], *, never_entered: float) -> dict[str, s
     m, lo, hi = fmt_estimate(att["mean"], att["ci95_low"], att["ci95_high"], unit="s")
     return _sentence("S11", "always", (
         f"In CityFlow, on the same 100 held-out draws, the DT from the corrected mixture had an average travel time of "
-        f"{m} s [{lo}, {hi}], with {float(never_entered):.1f} vehicles per episode that never entered."))
+        f"{m} s [{lo}, {hi}], with {fmt_number(never_entered, unit='n')} vehicles per episode that never entered."))
 
 
 def sentence_s12(block: Mapping[str, Any]) -> dict[str, str]:
@@ -463,6 +531,22 @@ def _listing_digest(directory: Path, pattern: str) -> dict[str, Any]:
     return {"n_files": len(lines), "sha256": hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()}
 
 
+def assert_design(rows: Sequence[Mapping[str, Any]], label: str, *, arms: Sequence[str], keys: Sequence[str],
+                  seeds: Sequence[int] = p94.SEEDS, draws: Sequence[int] = p94.HELD_OUT_DRAWS) -> None:
+    """A source's rows must be its design exactly -- one row per (arm, seed, draw) of *arms* x *seeds* x *draws* -- and
+    every value under *keys* finite; refused otherwise, before any number is computed."""
+    expected = {(str(arm), int(seed), int(draw)) for arm in arms for seed in seeds for draw in draws}
+    seen = [(str(row["arm"]), int(row["seed"]), int(row["draw_id"])) for row in rows]
+    if len(set(seen)) != len(seen):
+        raise ValueError(f"{label}: {len(seen) - len(set(seen))} (arm, seed, draw) cell(s) appear more than once")
+    if set(seen) != expected:
+        raise ValueError(f"{label}: {len(set(seen))} cells, not the {len(expected)} cells of its design "
+                         f"({len(arms)} arm(s) x {len(seeds)} seeds x {len(draws)} draws)")
+    bad = [cell for row, cell in zip(rows, seen) for key in keys if not math.isfinite(float(row[key]))]
+    if bad:
+        raise ValueError(f"{label}: {len(bad)} value(s) under {list(keys)} not finite (first at {bad[0]})")
+
+
 def load_sources(roots: p94.Roots) -> Sources:
     """Read and check everything, before any number: the committed declaration at its pin; the control at 5 of 5; the
     guard record passed and written by this code; every one of the 1,000 cells' chunks present, valid for its cell and
@@ -505,12 +589,17 @@ def load_sources(roots: p94.Roots) -> Sources:
         if problems:
             raise ValueError(f"{path.name}: {'; '.join(problems)}")
         new_rows.append(_published(payload, registered[int(cell["draw_id"])]))
+    assert_design(new_rows, "the new SUMO cells", arms=p94.SUMO_ARMS, keys=("e_sumo", "att_env"))
 
     p7_3a = json.loads((data / p94.P7_3A_ARTIFACT).read_bytes())
     original_rows = [dict(row) for row in p7_3a["cells"] if row["kind"] == "dt" and row["subject"] == p94.REGISTERED_TIER
                      and row["arm"] in p94.SUMO_ARMS]
+    assert_design(original_rows, f"{p94.P7_3A_ARTIFACT}'s mix50 cells", arms=p94.SUMO_ARMS, keys=("e_sumo", "att_env"))
     p7_3b = json.loads((data / p94.P7_3B_ARTIFACT).read_bytes())
-    anchor_k200_rows = [dict(row) for row in p7_3b["cells"] if row.get("subject") == "anchor_k200"]
+    anchor_k200_rows = [dict(row) for row in p7_3b["cells"] if row.get("subject") == "anchor_k200"
+                        and row.get("kind") == "dt" and row.get("arm") == "naive_in_domain"]
+    assert_design(anchor_k200_rows, f"{p94.P7_3B_ARTIFACT}'s anchor_k200 cells", arms=("naive_in_domain",),
+                  keys=("e_sumo",))
 
     route_i_path = ev.route_i_output(roots)
     route_i = json.loads(route_i_path.read_text(encoding="utf-8"))
@@ -528,8 +617,11 @@ def load_sources(roots: p94.Roots) -> Sources:
         cityflow_rows.append(crep._joined_row(ev.CITYFLOW_ARM, p94.TIER, episode, rerolled,
                                               att_ours=float(episode["att_horizon"]), source=source,
                                               refusal="the two routes disagree"))
+    assert_design(cityflow_rows, "the new CityFlow episodes", arms=(ev.CITYFLOW_ARM,), keys=("att_engine", "att_ours"))
     cityflow_original = [dict(row) for row in json.loads((data / p94.P9_1_IQL_TARGETS).read_bytes())["records"][
         f"p4_7:dt@{p94.REGISTERED_TIER}"]]
+    assert_design(cityflow_original, f"{p94.P9_1_IQL_TARGETS}'s p4_7:dt@mix50 records", arms=(f"dt@{p94.REGISTERED_TIER}",),
+                  keys=("att_engine", "att_ours"))
 
     facts = ev.new_subject_facts(roots, declaration)
     calibration = tc.load_calibration(data / tc.P7_2B_CALIBRATION_NAME)
@@ -593,8 +685,8 @@ def _arm_rows(rows: Sequence[Mapping[str, Any]], subject: str, arm: str) -> list
 
 
 def readings_of(registered: Mapping[str, Any], aligned: Mapping[str, Any], subject: str, arm: str) -> dict[str, str]:
-    """The four readings S10 compares, and R5's: S1, S3 (paired differences on ``e_sumo`` against the registered pair),
-    S5 and S6 (rho's interval under each pair), plus S2 and S4 (against the aligned pair)."""
+    """The sentences' branches on ``e_sumo``: S1, S3 (paired differences against the registered pair), S5 and S6 (rho's
+    six branches under each pair), plus S2 and S4 (against the aligned pair).  S10 compares S1, S3, S5 and S6."""
     reg, al = entry_of(registered, subject, arm), entry_of(aligned, subject, arm)
 
     def diff(entry: Mapping[str, Any], role: str) -> str:
@@ -625,14 +717,25 @@ def analysis(sources: Sources) -> dict[str, Any]:
                      "maxpressure_lane_once": {k: al["paired_att"][k]["maxpressure"] for k in ("e_sumo", "att_env")}}
         r3[label] = {
             pair: {**_rho_stats(entry),
-                   "readings": {key: {"rho > 0": entry[key]["ci95_low"] > 0.0, "rho < 1": entry[key]["ci95_high"] < 1.0}
+                   "readings": {key: rho_flags(entry[key]["ci95_low"], entry[key]["ci95_high"])
                                 for key in ("e_sumo", "att_env")}}
             for pair, entry in (("registered", reg), ("aligned", al))
         }
         corrected_rows = _arm_rows(sources.new_rows, p94.SUBJECT, arm)
         original_rows = _arm_rows(sources.original_rows, p94.REGISTERED_TIER, arm)
-        corrected_readings = readings_of(registered, aligned, p94.SUBJECT, arm)
-        original_readings = readings_of(original_registered, original_aligned, p94.REGISTERED_TIER, arm)
+        original_reg = entry_of(original_registered, p94.REGISTERED_TIER, arm)
+        original_al = entry_of(original_aligned, p94.REGISTERED_TIER, arm)
+        readings: dict[str, Any] = {"rule": R5_READINGS_RULE}
+        for key in ("e_sumo", "att_env"):
+            corrected_readings = r1_r3_readings(reg, al, key)
+            original_readings = r1_r3_readings(original_reg, original_al, key)
+            readings[key] = {"corrected": corrected_readings, "original": original_readings,
+                             "all_agree": corrected_readings == original_readings,
+                             "differing": [name for name in corrected_readings
+                                           if corrected_readings[name] != original_readings[name]]}
+        readings["all_agree"] = readings["e_sumo"]["all_agree"]
+        corrected_branches = readings_of(registered, aligned, p94.SUBJECT, arm)
+        original_branches = readings_of(original_registered, original_aligned, p94.REGISTERED_TIER, arm)
         r5[label] = {
             **{key: paired(corrected_rows, original_rows, key, left_label="corrected", right_label="original")
                for key in ("e_sumo", "att_env")},
@@ -640,8 +743,9 @@ def analysis(sources: Sources) -> dict[str, Any]:
                            "original": _rho_stats(entry_of(blocks[1], p94.REGISTERED_TIER, arm))}
                     for pair, blocks in (("registered", (registered, original_registered)),
                                          ("aligned", (aligned, original_aligned)))},
-            "readings": {"corrected": corrected_readings, "original": original_readings,
-                         "all_agree": corrected_readings == original_readings},
+            "readings": readings,
+            "s10_branches": {"corrected": {name: corrected_branches[name] for name in READING_NAMES},
+                             "original": {name: original_branches[name] for name in READING_NAMES}},
         }
         r7[label] = {"e_sumo": paired(corrected_rows, sources.anchor_k200_rows, "e_sumo", left_label="transferred",
                                       right_label="sumo_trained_anchor_k200")}
@@ -696,8 +800,7 @@ def choose_sentences(result: Mapping[str, Any]) -> list[dict[str, str]]:
         sentence_s7(r3["calibrated"]["aligned"]["e_sumo"], anchors="aligned"),
         sentence_s8(r4["paired"]["e_sumo"]),
         sentence_s9(r5["calibrated"]["e_sumo"]),
-        sentence_s10({k: r5["calibrated"]["readings"]["corrected"][k] for k in READING_NAMES},
-                     {k: r5["calibrated"]["readings"]["original"][k] for k in READING_NAMES}),
+        sentence_s10(r5["calibrated"]["s10_branches"]["corrected"], r5["calibrated"]["s10_branches"]["original"]),
         sentence_s11(r6["att_engine"], never_entered=r6["companions"]["never_entered"]),
         sentence_s12(r6["corrected_minus_original"]["att_engine"]),
     ]
@@ -801,9 +904,26 @@ def build_training(sources: Sources) -> dict[str, Any]:
             "code_commit": sources.code_commits.get("train"), **tc._git_provenance()}
 
 
+def _write_new(path: Path, text: str) -> None:
+    """Create *path* with *text* atomically: a temporary file beside it, fsynced, hard-linked to *path* (``os.link``
+    refuses an existing *path*) and removed -- also when anything fails, so a failure leaves no file and no litter."""
+    temporary = path.parent / f".{path.name}.{os.getpid()}.tmp"
+    created = False
+    try:
+        with open(temporary, "x", encoding="utf-8") as handle:
+            created = True
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.link(temporary, path)
+    finally:
+        if created and temporary.exists():
+            temporary.unlink()
+
+
 def write_artifacts(roots: p94.Roots, out_dir: str | Path | None = None) -> dict[str, str]:
     """Load, build and write the three artifacts into *out_dir* (``docs/data/`` by default).  Every refusal precedes
-    every write; an existing file is replaced only by the identical bytes."""
+    every write; an existing file is never replaced (identical bytes are left as they are); each write is atomic."""
     sources = load_sources(roots)
     target = Path(out_dir) if out_dir is not None else roots.data_dir
     payloads = {"p9_4_zero_shot.json": build_zero_shot(sources), "p9_4_cityflow.json": build_cityflow(sources),
@@ -817,7 +937,6 @@ def write_artifacts(roots: p94.Roots, out_dir: str | Path | None = None) -> dict
     for name, text in texts.items():
         path = target / name
         if not path.exists():
-            with open(path, "x", encoding="utf-8") as handle:
-                handle.write(text)
+            _write_new(path, text)
         written[name] = p94.file_sha256(path)
     return written
